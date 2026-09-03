@@ -1,16 +1,75 @@
-# README
+# Tex ⚡
 
-## About
+> **Tex** is a minimalist, distraction-free markdown notepad with Obsidian-style live rendering, KaTeX math equations, Mermaid diagrams, and seamless CLI capabilities.
 
-This is the official Wails Svelte-TS template.
+Built with **Go (Wails v2)**, **Svelte 5**, and **CodeMirror 6**.
 
-## Live Development
+---
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+## Features
 
-## Building
+- **Obsidian-Style Live Preview**: Headings, bold, italic, strikethrough, blockquotes, and interactive task checklists render directly in place. Markdown markup characters automatically reveal when your cursor touches them.
+- **Academic Math (KaTeX)**: Real-time rendering of inline math (`$E=mc^2$`) and display blocks (`$$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$`).
+- **Diagrams (Mermaid.js)**: Flowcharts, sequence diagrams, and mindmaps render inline inside ````mermaid` fenced code blocks.
+- **Tabbed Interface**: Clean tab bar with unsaved change tracking (`●`), close confirmations, and tab cycling.
+- **CLI & Single-Instance IPC**:
+  - Run `tex` to open a blank notepad.
+  - Run `tex note.md` to open or view files.
+  - If Tex is already open, running `tex another.md` brings the existing window to the foreground and opens the file in a new tab.
+- **Atomic File Operations**: Prevents file corruption via atomic writes and monitors external edits with `fsnotify`.
+- **Drag & Drop**: Drop markdown files directly into the window.
+- **Cross-Platform**: Designed for both **Linux** (WebKitGTK) and **Windows** (WebView2).
 
-To build a redistributable, production mode package, use `wails build`.
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+| :--- | :--- |
+| `Ctrl + N` | Open a new blank tab |
+| `Ctrl + O` | Open file dialog |
+| `Ctrl + S` | Save active file |
+| `Ctrl + Shift + S` | Save file as... |
+| `Ctrl + W` | Close active tab (prompts if unsaved) |
+| `Ctrl + Tab` / `Ctrl + Shift + Tab` | Switch between tabs |
+| `Ctrl + E` | Toggle between **Live Preview** and **Raw Source** |
+| `Ctrl + F` | Open Find & Replace bar |
+| `Ctrl + =` / `Ctrl + -` | Zoom font in / out |
+| `Ctrl + 0` | Reset font zoom |
+
+---
+
+## Building & Installing
+
+### Requirements
+- **Go 1.22+**
+- **Node.js 18+** & `npm`
+- **Wails v2**: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+- On Linux: `webkit2gtk-4.1` (or `webkit2gtk-4.0`) and `gtk3`
+
+### Development
+```bash
+make dev
+```
+
+### Build for Linux
+```bash
+make build-linux
+# Binary is output to build/bin/tex
+```
+
+### Install on Linux (`~/.local/bin`)
+```bash
+make install-linux
+```
+
+### Build for Windows (Cross-compile or Native)
+```bash
+make build-windows
+# Binary is output to build/bin/tex.exe
+```
+
+---
+
+## License
+MIT
