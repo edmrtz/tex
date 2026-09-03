@@ -12,14 +12,19 @@ Built with **Go (Wails v2)**, **Svelte 5**, and **CodeMirror 6**.
 - **Academic Math (KaTeX)**: Real-time rendering of inline math (`$E=mc^2$`) and display blocks (`$$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$`).
 - **Diagrams (Mermaid.js)**: Flowcharts, sequence diagrams, and mindmaps render inline inside `mermaid` fenced code blocks.
 - **Syntax Highlighted Code Blocks**: Full programming language support (`bash`, `python`, `go`, `javascript`, `json`, etc.) with dark-themed syntax highlighting.
-- **Sidebar Workspace Tree**: Fast, distraction-free file tree with automatic markdown discovery, real-time search, and collapsible sidebar.
+- **Sidebar Workspace Tree**: Fast, distraction-free file tree with automatic markdown discovery, real-time search, file & folder creation, renaming (`[rename]`), deletion (`[delete]`), and drag-and-drop file moving.
+- **Quick Switcher (`Ctrl+P`)**: Instant fuzzy note search across your entire workspace.
+- **Side-by-Side Split View (`Ctrl+\`)**: Seamless tri-mode toggle between **Live Preview**, **Raw Source**, and **Side-by-Side Split View**.
+- **Wiki-Links (`[[Note Name]]`)**: Interlink your notes with autocomplete and clickable references.
+- **Smart Lists & Checklists**: Automatic continuation on `Enter`, `Tab` / `Shift+Tab` indentation.
+- **Image Paste (`Ctrl+V`)**: Pasting screenshots or dropping images automatically saves to `./assets/` and embeds markdown image links.
+- **Export to HTML & PDF**: Export clean standalone HTML or print directly to PDF (`Ctrl+Shift+P` / `Ctrl+Shift+E`).
 - **CLI & Single-Instance IPC**:
-  - Run `tex` to open a blank notepad.
-  - Run `tex note.md` to open or view files.
+  - Run `tex` to open or restore your last session.
+  - Run `tex note.md` to open or auto-create files.
   - If Tex is already open, running `tex another.md` brings the existing window to the foreground and opens the file directly.
 - **Atomic File Operations**: Prevents file corruption via atomic writes and monitors external edits with `fsnotify`.
-- **Drag & Drop**: Drop markdown files directly into the window.
-- **Cross-Platform**: Designed for both **Linux** (WebKitGTK) and **Windows** (WebView2).
+- **Cross-Platform**: Native builds for **Linux** (WebKitGTK) and **Windows** (WebView2 on both **x64 Intel/AMD** and **ARM64**).
 
 ---
 
@@ -27,15 +32,18 @@ Built with **Go (Wails v2)**, **Svelte 5**, and **CodeMirror 6**.
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Ctrl + B` / `Ctrl + \` | Toggle Sidebar |
+| `Ctrl + P` / `Ctrl + K` | Quick Switcher (Fuzzy note finder) |
+| `Ctrl + \` / `Ctrl + E` | Switch View Mode (**Live** / **Raw** / **Split**) |
+| `Ctrl + B` | Toggle Sidebar |
 | `Ctrl + N` | Create a new blank note |
 | `Ctrl + O` | Open file dialog |
 | `Ctrl + Shift + O` | Open workspace folder |
 | `Ctrl + S` | Save active file |
 | `Ctrl + Shift + S` | Save file as... |
+| `Ctrl + Shift + E` | Export as standalone HTML |
+| `Ctrl + Shift + P` | Print to PDF |
 | `Ctrl + W` | Close active note (prompts if unsaved) |
 | `Ctrl + Tab` / `Ctrl + Shift + Tab` | Switch between open notes |
-| `Ctrl + E` | Toggle between **Live Preview** and **Raw Source** |
 | `Ctrl + F` | Open Find & Replace bar |
 | `Ctrl + =` / `Ctrl + -` | Zoom font in / out |
 | `Ctrl + 0` | Reset font zoom |
@@ -62,8 +70,9 @@ Or download the standalone NSIS setup installer from [GitHub Releases](https://g
 
 ### Manual Download (Linux & Windows)
 Pre-built archives and installers are available on the [GitHub Releases](https://github.com/edmrtz/tex/releases) page:
-- **Linux (x86_64)**: `tex-linux-amd64.tar.gz`
-- **Windows (x86_64)**: `tex-windows-amd64-installer.exe` or portable `tex-windows-amd64.zip`
+- **Linux (x64 / Intel & AMD)**: `tex-linux-amd64.tar.gz`
+- **Windows (x64 / Intel & AMD)**: `tex-windows-x64-installer.exe` or portable `tex-windows-x64.zip`
+- **Windows (ARM64 / Snapdragon, Surface)**: portable `tex-windows-arm64.zip`
 
 ---
 

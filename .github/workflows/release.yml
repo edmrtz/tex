@@ -81,29 +81,52 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build Windows Executable and NSIS Installer
+      - name: Build Windows x64 Executable and NSIS Installer
         run: wails build -platform windows/amd64 -nsis
 
-      - name: Package Windows Artifacts
+      - name: Package Windows x64 Artifacts
         shell: pwsh
         run: |
-          Compress-Archive -Path build\bin\tex.exe -DestinationPath build\bin\tex-windows-amd64.zip
+          Compress-Archive -Path build\bin\tex.exe -DestinationPath build\bin\tex-windows-x64.zip
+          Copy-Item build\bin\tex-windows-x64.zip -Destination build\bin\tex-windows-amd64.zip
           $installer = Get-ChildItem -Path build\bin\ -Filter "*installer.exe" | Select-Object -First 1
           if ($installer) {
+            Copy-Item $installer.FullName -Destination "build\bin\tex-windows-x64-installer.exe"
             Copy-Item $installer.FullName -Destination "build\bin\tex-windows-amd64-installer.exe"
           }
+          Remove-Item -Path build\bin\tex.exe
 
-      - name: Upload Windows Standalone
+      - name: Build Windows ARM64 Executable
+        run: wails build -platform windows/arm64 -s
+
+      - name: Package Windows ARM64 Artifacts
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\bin\tex.exe -DestinationPath build\bin\tex-windows-arm64.zip
+
+      - name: Upload Windows x64 Standalone
+        uses: actions/upload-artifact@v4
+        with:
+          name: tex-windows-x64-zip
+          path: build/bin/tex-windows-x64.zip
+
+      - name: Upload Windows amd64 Compatibility Standalone
         uses: actions/upload-artifact@v4
         with:
           name: tex-windows-amd64-zip
           path: build/bin/tex-windows-amd64.zip
 
-      - name: Upload Windows Installer
+      - name: Upload Windows x64 Installer
         uses: actions/upload-artifact@v4
         with:
-          name: tex-windows-amd64-installer
-          path: build/bin/tex-windows-amd64-installer.exe
+          name: tex-windows-x64-installer
+          path: build/bin/tex-windows-x64-installer.exe
+
+      - name: Upload Windows ARM64 Standalone
+        uses: actions/upload-artifact@v4
+        with:
+          name: tex-windows-arm64-zip
+          path: build/bin/tex-windows-arm64.zip
 
   publish-release:
     name: Publish GitHub Release
