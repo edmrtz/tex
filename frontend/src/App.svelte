@@ -9,12 +9,19 @@
     OpenFileDialog,
     SaveFileDialog,
   } from '../wailsjs/go/main/App';
-  import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
+  import {
+    EventsOn,
+    EventsOff,
+    WindowSetTitle,
+    OnFileDrop,
+    OnFileDropOff,
+  } from '../wailsjs/runtime/runtime';
 
   // State
   let tabs = $state<Tab[]>([]);
   let activeTabId = $state<string>('');
   let editorMode = $state<EditorMode>('live');
+  let fontSize = $state<number>(15);
   let cursorInfo = $state<CursorPosition>({ line: 1, col: 1, wordCount: 0, charCount: 0 });
 
   // Confirmation modal state
@@ -26,6 +33,17 @@
   let editorInstance: ReturnType<typeof createMarkdownEditor> | null = null;
 
   let activeTab = $derived(tabs.find((t) => t.id === activeTabId) || null);
+
+  // Synchronize OS Window Title with active file & dirty status
+  $effect(() => {
+    if (activeTab) {
+      const dirtyMark = activeTab.isDirty ? '● ' : '';
+      const name = activeTab.title || 'Untitled';
+      WindowSetTitle(`${dirtyMark}${name} — Tex`);
+    } else {
+      WindowSetTitle('Tex');
+    }
+  });
 
   function createNewTab(title = 'Untitled', content = '', path: string | null = null, modTime = 0): Tab {
     return {
@@ -174,6 +192,21 @@
     }
   }
 
+  function zoomIn() {
+    fontSize = Math.min(32, fontSize + 1);
+    editorInstance?.setFontSize(fontSize);
+  }
+
+  function zoomOut() {
+    fontSize = Math.max(10, fontSize - 1);
+    editorInstance?.setFontSize(fontSize);
+  }
+
+  function zoomReset() {
+    fontSize = 15;
+    editorInstance?.setFontSize(fontSize);
+  }
+
   // Keyboard shortcut listener
   function handleKeyDown(e: KeyboardEvent) {
     if (e.ctrlKey || e.metaKey) {
@@ -195,6 +228,18 @@
       } else if (e.key === 'e') {
         e.preventDefault();
         toggleLiveMode();
+      } else if (e.key === 'f') {
+        e.preventDefault();
+        editorInstance?.openSearch();
+      } else if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        zoomIn();
+      } else if (e.key === '-') {
+        e.preventDefault();
+        zoomOut();
+      } else if (e.key === '0') {
+        e.preventDefault();
+        zoomReset();
       } else if (e.key === 'Tab') {
         e.preventDefault();
         if (tabs.length > 1) {
@@ -213,7 +258,7 @@
 
     // Mount CodeMirror
     if (editorContainerEl) {
-      const initialTab = createNewTab('Welcome.md', `# Welcome to Tex ⚡\n\nA fast, distraction-free markdown notepad with live rendering.\n\n## Math Support (KaTeX)\nInline math: $E = mc^2$\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## Live Checklists\n- [x] Lightweight & Fast\n- [x] CodeMirror 6 live preview\n- [ ] KaTeX math & Mermaid diagrams\n\n## Diagram Support (Mermaid)\n\`\`\`mermaid\ngraph LR\n  A[Write Markdown] --> B(Live Preview)\n  B --> C{Formulas & Diagrams}\n  C -->|Math| D[KaTeX]\n  C -->|Flow| E[Mermaid]\n\`\`\`\n\nPress **Ctrl+E** to toggle between Live Preview and Raw Source!`);
+      const initialTab = createNewTab('Welcome.md', `# Welcome to Tex ⚡\n\nA fast, distraction-free markdown notepad with live rendering.\n\n## Math Support (KaTeX)\nInline math: $E = mc^2$\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## Live Checklists\n- [x] Lightweight & Fast\n- [x] CodeMirror 6 live preview\n- [ ] KaTeX math & Mermaid diagrams\n\n## Diagram Support (Mermaid)\n\`\`\`mermaid\ngraph LR\n  A[Write Markdown] --> B(Live Preview)\n  B --> C{Formulas & Diagrams}\n  C -->|Math| D[KaTeX]\n  C -->|Flow| E[Mermaid]\n\`\`\`\n\n### Shortcuts\n* **Ctrl+N**: New tab\n* **Ctrl+O**: Open file\n* **Ctrl+S**: Save file\n* **Ctrl+W**: Close tab\n* **Ctrl+E**: Toggle Live Preview & Raw Source\n* **Ctrl+F**: Find & Replace\n* **Ctrl+= / Ctrl+-**: Zoom font\n* **Ctrl+Tab**: Switch tabs`);
 
       tabs = [initialTab];
       activeTabId = initialTab.id;
@@ -222,6 +267,7 @@
         editorContainerEl,
         initialTab.content,
         editorMode,
+        fontSize,
         {
           onChange: (newContent) => {
             if (activeTab) {
@@ -251,6 +297,15 @@
     } catch (e) {
       console.error('Error getting initial files:', e);
     }
+
+    // Listen for files dropped onto the window
+    OnFileDrop((x: number, y: number, paths: string[]) => {
+      if (paths && paths.length > 0) {
+        for (const file of paths) {
+          openFilePath(file);
+        }
+      }
+    }, true);
 
     // Listen for files passed via CLI while already running
     EventsOn('cli:open-files', async (files: string[]) => {
@@ -282,6 +337,7 @@
 
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeyDown);
+    OnFileDropOff();
     EventsOff('cli:open-files');
     EventsOff('file:modified');
     if (editorInstance) {
@@ -322,6 +378,9 @@
 
     <!-- Quick Actions -->
     <div class="tab-actions">
+      <button class="icon-btn" title="Find & Replace (Ctrl+F)" onclick={() => editorInstance?.openSearch()}>
+        🔍 Find
+      </button>
       <button class="icon-btn" title="Open File (Ctrl+O)" onclick={handleOpenFile}>
         Open
       </button>
@@ -351,6 +410,11 @@
       <span>{cursorInfo.charCount} characters</span>
     </div>
     <div class="status-right">
+      <span class="zoom-controls">
+        <button class="zoom-btn" title="Zoom Out (Ctrl+-)" onclick={zoomOut}>-</button>
+        <button class="zoom-text" title="Reset Zoom (Ctrl+0)" onclick={zoomReset}>{fontSize}px</button>
+        <button class="zoom-btn" title="Zoom In (Ctrl+=)" onclick={zoomIn}>+</button>
+      </span>
       <button class="badge" onclick={toggleLiveMode} type="button">
         Mode: {editorMode === 'live' ? 'Live Preview' : 'Raw Source'}
       </button>

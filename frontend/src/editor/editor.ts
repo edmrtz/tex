@@ -10,10 +10,11 @@ import {
   dropCursor,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { createLivePreviewPlugin } from './livePreview';
-import { editorTheme } from './theme';
+import { editorTheme, createFontSizeTheme } from './theme';
 import type { CursorPosition, EditorMode } from '../types';
 
 export interface EditorCallbacks {
@@ -26,9 +27,11 @@ export function createMarkdownEditor(
   parent: HTMLElement,
   initialContent: string,
   mode: EditorMode,
+  initialFontSize: number,
   callbacks: EditorCallbacks
 ) {
   const modeCompartment = new Compartment();
+  const fontSizeCompartment = new Compartment();
 
   function getModeExtension(m: EditorMode): Extension {
     return m === 'live' ? [createLivePreviewPlugin()] : [];
@@ -65,6 +68,7 @@ export function createMarkdownEditor(
         return true;
       },
     },
+    ...searchKeymap,
   ]);
 
   const state = EditorState.create({
@@ -73,6 +77,7 @@ export function createMarkdownEditor(
       history(),
       dropCursor(),
       highlightActiveLine(),
+      search({ top: true }),
       customKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       markdown({
@@ -81,6 +86,7 @@ export function createMarkdownEditor(
         addKeymap: true,
       }),
       modeCompartment.of(getModeExtension(mode)),
+      fontSizeCompartment.of(createFontSizeTheme(initialFontSize)),
       editorTheme,
       updateListener,
       EditorView.lineWrapping,
@@ -105,6 +111,14 @@ export function createMarkdownEditor(
       view.dispatch({
         effects: modeCompartment.reconfigure(getModeExtension(newMode)),
       });
+    },
+    setFontSize(sizePx: number) {
+      view.dispatch({
+        effects: fontSizeCompartment.reconfigure(createFontSizeTheme(sizePx)),
+      });
+    },
+    openSearch() {
+      openSearchPanel(view);
     },
     focus() {
       view.focus();

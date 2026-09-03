@@ -1,5 +1,13 @@
 import { EditorView } from '@codemirror/view';
 
+export function createFontSizeTheme(sizePx: number) {
+  return EditorView.theme({
+    '&': {
+      fontSize: `${sizePx}px`,
+    },
+  });
+}
+
 export const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
@@ -107,6 +115,57 @@ export const editorTheme = EditorView.theme({
     accentColor: '#38bdf8',
     transform: 'scale(1.15)',
     verticalAlign: 'middle',
+  },
+  // Search Panel Styling
+  '.cm-panels': {
+    backgroundColor: '#18181b',
+    color: '#e4e4e7',
+    borderBottom: '1px solid #27272a',
+  },
+  '.cm-panels-top': {
+    borderBottom: '1px solid #27272a',
+  },
+  '.cm-search': {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '6px',
+    padding: '8px 16px',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+  },
+  '.cm-search input': {
+    backgroundColor: '#27272a',
+    border: '1px solid #3f3f46',
+    borderRadius: '4px',
+    color: '#fafafa',
+    padding: '4px 8px',
+    fontSize: '13px',
+    outline: 'none',
+  },
+  '.cm-search input:focus': {
+    borderColor: '#38bdf8',
+  },
+  '.cm-search button': {
+    backgroundColor: '#27272a',
+    border: '1px solid #3f3f46',
+    borderRadius: '4px',
+    color: '#e4e4e7',
+    padding: '4px 10px',
+    fontSize: '12px',
+    cursor: 'pointer',
+  },
+  '.cm-search button:hover': {
+    backgroundColor: '#3f3f46',
+    color: '#fff',
+  },
+  '.cm-search label': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '12px',
+    color: '#a1a1aa',
+    cursor: 'pointer',
   },
   // KaTeX Widgets
   '.cm-katex-inline': {
