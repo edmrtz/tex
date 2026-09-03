@@ -17,5 +17,9 @@ package() {
   install -Dm755 tex "${pkgdir}/usr/bin/tex"
   install -Dm644 tex.desktop "${pkgdir}/usr/share/applications/tex.desktop"
   install -Dm644 appicon.png "${pkgdir}/usr/share/icons/hicolor/1024x1024/apps/tex.png"
+  for size in 16 32 48 64 128 256 512; do
+    mkdir -p "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps"
+    ln -sf "/usr/share/icons/hicolor/1024x1024/apps/tex.png" "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/tex.png"
+  done
   install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }

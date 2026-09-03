@@ -25,6 +25,12 @@ install-desktop: install-linux
 	mkdir -p $(PREFIX)/share/icons/hicolor/1024x1024/apps
 	cp build/linux/tex.desktop $(PREFIX)/share/applications/tex.desktop
 	cp build/appicon.png $(PREFIX)/share/icons/hicolor/1024x1024/apps/tex.png
+	@for size in 16 32 48 64 128 256 512; do \
+		mkdir -p $(PREFIX)/share/icons/hicolor/$${size}x$${size}/apps; \
+		ln -sf $(PREFIX)/share/icons/hicolor/1024x1024/apps/tex.png $(PREFIX)/share/icons/hicolor/$${size}x$${size}/apps/tex.png; \
+	done
+	@command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -f -q $(PREFIX)/share/icons/hicolor || true
+	@command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database $(PREFIX)/share/applications || true
 	@echo "Installed desktop entry and icons to $(PREFIX)/share"
 
 package-linux: build-linux
