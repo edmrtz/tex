@@ -181,13 +181,16 @@ func (a *App) readTreeRecursive(currentDir string, depth, maxDepth int) ([]FileI
 
 		if entry.IsDir() {
 			children, _ := a.readTreeRecursive(fullPath, depth+1, maxDepth)
-			dirs = append(dirs, FileItem{
-				Path:     fullPath,
-				Name:     name,
-				IsDir:    true,
-				Children: children,
-				ModTime:  info.ModTime().UnixMilli(),
-			})
+			// Only include directories that contain markdown files
+			if len(children) > 0 {
+				dirs = append(dirs, FileItem{
+					Path:     fullPath,
+					Name:     name,
+					IsDir:    true,
+					Children: children,
+					ModTime:  info.ModTime().UnixMilli(),
+				})
+			}
 		} else {
 			ext := strings.ToLower(filepath.Ext(name))
 			if ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".txt" {

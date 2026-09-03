@@ -424,15 +424,13 @@
 </script>
 
 <div class="tex-app">
-  <!-- Left Inbox & File Tree Sidebar -->
+  <!-- Left File Tree Sidebar -->
   <Sidebar
     isOpen={sidebarOpen}
-    {notes}
-    {activeNoteId}
+    activePath={activeNote?.path || null}
     {currentFolder}
     {folderTree}
-    onSelectNote={switchNote}
-    onCloseNote={requestCloseNote}
+    onSelectFile={(filePath) => openFilePath(filePath)}
     onNewNote={addNote}
     onOpenFile={handleOpenFile}
     onOpenFolder={handleOpenFolder}
