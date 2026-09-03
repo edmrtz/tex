@@ -60,6 +60,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SessionData {
+	    lastFolder: string;
+	    openFiles: string[];
+	    activeFile: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SessionData(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lastFolder = source["lastFolder"];
+	        this.openFiles = source["openFiles"];
+	        this.activeFile = source["activeFile"];
+	    }
+	}
 	export class WorkspaceInfo {
 	    currentDir: string;
 	    initialFiles: string[];

@@ -6,9 +6,13 @@ export function CreateNewFile(arg1:string,arg2:string):Promise<main.FileInfo>;
 
 export function DeleteFile(arg1:string):Promise<void>;
 
+export function ExportHTML(arg1:string,arg2:string):Promise<string>;
+
 export function GetInitialFiles():Promise<Array<string>>;
 
 export function GetWorkspaceInfo():Promise<main.WorkspaceInfo>;
+
+export function LoadSession():Promise<main.SessionData>;
 
 export function MoveFile(arg1:string,arg2:string):Promise<main.FileInfo>;
 
@@ -16,13 +20,21 @@ export function OpenDirectoryDialog():Promise<string>;
 
 export function OpenFileDialog():Promise<string>;
 
+export function PrintDocument():Promise<void>;
+
 export function ReadDirectoryTree(arg1:string,arg2:number):Promise<Array<main.FileItem>>;
 
 export function ReadFile(arg1:string):Promise<main.FileInfo>;
 
+export function RenameFile(arg1:string,arg2:string):Promise<main.FileInfo>;
+
 export function SaveFile(arg1:string,arg2:string):Promise<main.FileInfo>;
 
 export function SaveFileDialog(arg1:string,arg2:string):Promise<string>;
+
+export function SavePastedImage(arg1:string,arg2:string,arg3:string):Promise<string>;
+
+export function SaveSession(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;
 
 export function UnwatchFile(arg1:string):Promise<void>;
 

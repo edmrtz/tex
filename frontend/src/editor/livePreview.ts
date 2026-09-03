@@ -78,6 +78,33 @@ class HorizontalRuleWidget extends WidgetType {
   }
 }
 
+class WikiLinkWidget extends WidgetType {
+  constructor(readonly linkTarget: string, readonly displayText: string) {
+    super();
+  }
+
+  eq(other: WikiLinkWidget) {
+    return other.linkTarget === this.linkTarget && other.displayText === this.displayText;
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-wikilink';
+    span.textContent = `[[${this.displayText}]]`;
+    span.title = `Open note: ${this.linkTarget}`;
+    span.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.dispatchEvent(new CustomEvent('tex:open-wikilink', { detail: this.linkTarget }));
+    });
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
 // Check if cursor or selection is strictly inside [from, to] (inclusive of boundaries)
 function cursorInside(state: EditorState, from: number, to: number): boolean {
   for (const range of state.selection.ranges) {
@@ -378,6 +405,36 @@ function computeDecorations(state: EditorState): DecorationSet {
           widget: new InlineMathWidget(mathContent),
         })
       );
+    }
+  }
+
+  // 5. Wiki-links: [[Target]] or [[Target|Display]]
+  const wikiLinkRegex = /\[\[([^[\]\n]+?)\]\]/g;
+  while ((match = wikiLinkRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    if (isOccupied(matchFrom, matchTo)) continue;
+
+    const raw = match[1];
+    let target = raw;
+    let display = raw;
+    if (raw.includes('|')) {
+      const parts = raw.split('|');
+      target = parts[0].trim();
+      display = parts[1].trim() || target;
+    }
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(
+        matchFrom,
+        matchTo,
+        Decoration.replace({
+          widget: new WikiLinkWidget(target, display),
+        })
+      );
+    } else {
+      ranges.push(Decoration.mark({ class: 'cm-wikilink-edit' }).range(matchFrom, matchTo));
     }
   }
 

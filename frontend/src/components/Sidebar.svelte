@@ -11,6 +11,7 @@
     RefreshCw,
     Settings as SettingsIcon,
     Trash2,
+    Edit2,
   } from '@lucide/svelte';
   import FileTreeNode from './FileTreeNode.svelte';
 
@@ -29,6 +30,7 @@
     onCreateFileInFolder,
     onDeleteFile,
     onMoveFile,
+    onRenameFile,
   }: {
     isOpen: boolean;
     activePath: string | null;
@@ -44,14 +46,18 @@
     onCreateFileInFolder?: (folderPath: string, fileName: string) => void;
     onDeleteFile?: (filePath: string) => void;
     onMoveFile?: (sourcePath: string, targetDir: string) => void;
+    onRenameFile?: (oldPath: string, newName: string) => void;
   } = $props();
 
   let searchQuery = $state('');
   let contextMenu = $state<{ x: number; y: number; item: FileTreeItem } | null>(null);
   let showNewFileModal = $state<{ folderPath: string } | null>(null);
   let showDeleteModal = $state<FileTreeItem | null>(null);
+  let showRenameModal = $state<FileTreeItem | null>(null);
   let newFileName = $state('');
   let newFileInputEl = $state<HTMLInputElement | null>(null);
+  let renameName = $state('');
+  let renameInputEl = $state<HTMLInputElement | null>(null);
 
   let draggedItem = $state<FileTreeItem | null>(null);
   let isRootDragOver = $state(false);
@@ -99,6 +105,25 @@
     if (!showDeleteModal) return;
     onDeleteFile?.(showDeleteModal.path);
     showDeleteModal = null;
+  }
+
+  function promptRename(item: FileTreeItem) {
+    contextMenu = null;
+    renameName = item.name;
+    showRenameModal = item;
+    setTimeout(() => {
+      renameInputEl?.focus();
+      renameInputEl?.select();
+    }, 50);
+  }
+
+  function submitRename(e?: Event) {
+    if (e) e.preventDefault();
+    if (!showRenameModal || !renameName.trim()) return;
+    if (onRenameFile) {
+      onRenameFile(showRenameModal.path, renameName.trim());
+    }
+    showRenameModal = null;
   }
 
   function submitNewFile(e?: Event) {
@@ -163,6 +188,7 @@
     if (e.key === 'Escape') {
       contextMenu = null;
       showNewFileModal = null;
+      showRenameModal = null;
       showDeleteModal = null;
     }
   }}
@@ -348,6 +374,14 @@
         <span>[+ new file]</span>
       </button>
       <button
+        class="context-menu-item"
+        onclick={() => promptRename(contextMenu!.item)}
+        type="button"
+      >
+        <Edit2 size={13} />
+        <span>[~ rename folder]</span>
+      </button>
+      <button
         class="context-menu-item danger"
         onclick={() => promptDelete(contextMenu!.item)}
         type="button"
@@ -357,6 +391,14 @@
       </button>
     {:else}
       <button
+        class="context-menu-item"
+        onclick={() => promptRename(contextMenu!.item)}
+        type="button"
+      >
+        <Edit2 size={13} />
+        <span>[~ rename file]</span>
+      </button>
+      <button
         class="context-menu-item danger"
         onclick={() => promptDelete(contextMenu!.item)}
         type="button"
@@ -365,6 +407,57 @@
         <span>[- delete file]</span>
       </button>
     {/if}
+  </div>
+{/if}
+
+{#if showRenameModal}
+  <div
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    onclick={() => { showRenameModal = null; }}
+    onkeydown={(e) => { if (e.key === 'Escape') showRenameModal = null; }}
+  >
+    <div
+      class="modal-card"
+      role="document"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div class="modal-title">
+        <span class="tui-bracket">[</span>
+        <span>rename {showRenameModal.isDir ? 'folder' : 'file'}</span>
+        <span class="tui-bracket">]</span>
+      </div>
+      <form onsubmit={submitRename}>
+        <div class="modal-input-row">
+          <input
+            bind:this={renameInputEl}
+            type="text"
+            bind:value={renameName}
+            class="tui-modal-input"
+            autofocus
+          />
+        </div>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick={() => { showRenameModal = null; }}
+          >
+            cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            disabled={!renameName.trim() || renameName.trim() === showRenameModal.name}
+          >
+            rename
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 {/if}
 

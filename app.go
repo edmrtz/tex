@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +15,13 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// SessionData stores state of open workspace and files
+type SessionData struct {
+	LastFolder string   `json:"lastFolder"`
+	OpenFiles  []string `json:"openFiles"`
+	ActiveFile string   `json:"activeFile"`
+}
 
 // FileInfo represents file data sent to frontend
 type FileInfo struct {
@@ -235,6 +244,163 @@ func (a *App) MoveFile(sourcePath string, targetDir string) (*FileInfo, error) {
 	return a.ReadFile(destPath)
 }
 
+func getSessionFilePath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = os.TempDir()
+	}
+	dir := filepath.Join(configDir, "tex")
+	_ = os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, "session.json")
+}
+
+// SaveSession persists open workspace and open files
+func (a *App) SaveSession(folder string, files []string, activeFile string) error {
+	session := SessionData{
+		LastFolder: folder,
+		OpenFiles:  files,
+		ActiveFile: activeFile,
+	}
+	data, err := json.MarshalIndent(session, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(getSessionFilePath(), data, 0644)
+}
+
+// LoadSession reads previous session state
+func (a *App) LoadSession() (*SessionData, error) {
+	data, err := os.ReadFile(getSessionFilePath())
+	if err != nil {
+		return nil, err
+	}
+	var session SessionData
+	if err := json.Unmarshal(data, &session); err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+// RenameFile renames a file or directory
+func (a *App) RenameFile(oldPath string, newName string) (*FileInfo, error) {
+	oldClean := filepath.Clean(oldPath)
+	oldAbs, err := filepath.Abs(oldClean)
+	if err != nil {
+		oldAbs = oldClean
+	}
+	dir := filepath.Dir(oldAbs)
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return nil, fmt.Errorf("name cannot be empty")
+	}
+	fi, err := os.Stat(oldAbs)
+	if err != nil {
+		return nil, err
+	}
+	if !fi.IsDir() {
+		lower := strings.ToLower(newName)
+		if !strings.HasSuffix(lower, ".md") && !strings.HasSuffix(lower, ".markdown") && !strings.HasSuffix(lower, ".txt") {
+			newName = newName + ".md"
+		}
+	}
+	newAbs := filepath.Join(dir, newName)
+	if oldAbs == newAbs {
+		return a.ReadFile(newAbs)
+	}
+	if _, statErr := os.Stat(newAbs); statErr == nil {
+		return nil, fmt.Errorf("a file named %s already exists", newName)
+	}
+	a.UnwatchFile(oldAbs)
+	if err := os.Rename(oldAbs, newAbs); err != nil {
+		return nil, err
+	}
+	if fi.IsDir() {
+		return &FileInfo{
+			Path: newAbs,
+			Name: filepath.Base(newAbs),
+		}, nil
+	}
+	return a.ReadFile(newAbs)
+}
+
+// SavePastedImage saves base64 clipboard image to assets/ and returns markdown relative path
+func (a *App) SavePastedImage(folder string, activeFilePath string, base64Data string) (string, error) {
+	targetBase := folder
+	if activeFilePath != "" {
+		targetBase = filepath.Dir(activeFilePath)
+	}
+	if targetBase == "" {
+		targetBase = a.currentDir
+		if targetBase == "" {
+			targetBase, _ = os.Getwd()
+		}
+	}
+	assetsDir := filepath.Join(targetBase, "assets")
+	if err := os.MkdirAll(assetsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create assets directory: %w", err)
+	}
+
+	parts := strings.Split(base64Data, ",")
+	rawBase64 := base64Data
+	ext := "png"
+	if len(parts) == 2 {
+		rawBase64 = parts[1]
+		if strings.Contains(parts[0], "jpeg") || strings.Contains(parts[0], "jpg") {
+			ext = "jpg"
+		} else if strings.Contains(parts[0], "gif") {
+			ext = "gif"
+		} else if strings.Contains(parts[0], "webp") {
+			ext = "webp"
+		}
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(rawBase64)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode image data: %w", err)
+	}
+
+	filename := fmt.Sprintf("image-%d.%s", time.Now().UnixMilli(), ext)
+	filePath := filepath.Join(assetsDir, filename)
+
+	if err := os.WriteFile(filePath, decoded, 0644); err != nil {
+		return "", fmt.Errorf("failed to write image file: %w", err)
+	}
+
+	return filepath.Join("assets", filename), nil
+}
+
+// ExportHTML prompts save dialog and saves standalone HTML document
+func (a *App) ExportHTML(defaultFilename string, htmlContent string) (string, error) {
+	if defaultFilename == "" {
+		defaultFilename = "document.html"
+	}
+	selected, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:            "Export as Standalone HTML",
+		DefaultDirectory: a.currentDir,
+		DefaultFilename:  defaultFilename,
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: "HTML Documents (*.html)",
+				Pattern:     "*.html",
+			},
+		},
+	})
+	if err != nil || selected == "" {
+		return "", err
+	}
+	if err := os.WriteFile(selected, []byte(htmlContent), 0644); err != nil {
+		return "", err
+	}
+	return selected, nil
+}
+
+// PrintDocument emits print event to frontend
+func (a *App) PrintDocument() {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "action:print", nil)
+	}
+}
+
 // OpenDirectoryDialog prompts the user to select a workspace folder
 func (a *App) OpenDirectoryDialog() (string, error) {
 	defaultDir := a.currentDir
@@ -340,12 +506,29 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 
 	folder := cwd
 	var files []string
-	for _, f := range a.initialFiles {
-		fi, err := os.Stat(f)
-		if err == nil && fi.IsDir() {
-			folder = f
-		} else {
-			files = append(files, f)
+	if len(a.initialFiles) > 0 {
+		for _, f := range a.initialFiles {
+			fi, err := os.Stat(f)
+			if err == nil && fi.IsDir() {
+				folder = f
+			} else {
+				files = append(files, f)
+			}
+		}
+	} else {
+		// Restore previous session if available
+		session, err := a.LoadSession()
+		if err == nil && session != nil {
+			if session.LastFolder != "" {
+				if fi, err := os.Stat(session.LastFolder); err == nil && fi.IsDir() {
+					folder = session.LastFolder
+				}
+			}
+			for _, f := range session.OpenFiles {
+				if fi, err := os.Stat(f); err == nil && !fi.IsDir() {
+					files = append(files, f)
+				}
+			}
 		}
 	}
 

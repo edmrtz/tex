@@ -26,7 +26,7 @@ export interface WorkspaceInfo {
   initialTree: FileTreeItem[];
 }
 
-export type EditorMode = 'live' | 'source';
+export type EditorMode = 'live' | 'source' | 'split';
 
 export interface CursorPosition {
   line: number;
@@ -43,4 +43,5 @@ export interface AppSettings {
   vimMode: boolean;
   fontSize: number;
   editorWidth: 'full' | 'wide' | 'centered';
+  showWordCount?: boolean;
 }

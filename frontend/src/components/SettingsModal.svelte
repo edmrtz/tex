@@ -241,7 +241,7 @@
           </div>
         </div>
 
-        <!-- Section: Line Numbers & Vim -->
+        <!-- Section: Line Numbers, Vim, & Stats -->
         <div class="tui-toggle-row">
           <div class="toggle-item">
             <button
@@ -263,6 +263,19 @@
             >
               <span class="indicator">{draft.vimMode ? '[x]' : '[ ]'}</span>
               <span>Vim Navigation</span>
+            </button>
+          </div>
+        </div>
+        <div class="tui-toggle-row" style="margin-top: 8px;">
+          <div class="toggle-item">
+            <button
+              class="tui-option-btn full-width"
+              class:selected={draft.showWordCount !== false}
+              onclick={() => update('showWordCount', draft.showWordCount === false ? true : false)}
+              type="button"
+            >
+              <span class="indicator">{draft.showWordCount !== false ? '[x]' : '[ ]'}</span>
+              <span>Document Statistics</span>
             </button>
           </div>
         </div>

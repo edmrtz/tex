@@ -24,6 +24,12 @@
     CreateNewFile,
     DeleteFile,
     MoveFile,
+    RenameFile,
+    SavePastedImage,
+    ExportHTML,
+    PrintDocument,
+    SaveSession,
+    LoadSession,
   } from '../wailsjs/go/main/App';
   import {
     EventsOn,
@@ -35,6 +41,7 @@
     WindowToggleMaximise,
     Quit,
   } from '../wailsjs/runtime/runtime';
+  import QuickSwitcher from './components/QuickSwitcher.svelte';
   import {
     PanelLeft,
     PanelLeftClose,
@@ -42,6 +49,9 @@
     Search,
     Eye,
     Code,
+    Columns2,
+    Printer,
+    Download,
     Settings as SettingsIcon,
   } from '@lucide/svelte';
 
@@ -97,6 +107,31 @@
   // Editor DOM reference & CM6 instance
   let editorContainerEl = $state<HTMLDivElement | null>(null);
   let editorInstance = $state<ReturnType<typeof createMarkdownEditor> | null>(null);
+  let previewContainerEl = $state<HTMLDivElement | null>(null);
+  let previewInstance = $state<ReturnType<typeof createMarkdownEditor> | null>(null);
+  let showQuickSwitcher = $state<boolean>(false);
+
+  function getAllWorkspaceFiles(): string[] {
+    const list: string[] = [];
+    function walk(items: FileTreeItem[]) {
+      for (const item of items) {
+        if (item.isDir) {
+          if (item.children) walk(item.children);
+        } else {
+          list.push(item.path);
+        }
+      }
+    }
+    walk(folderTree);
+    return list;
+  }
+
+  function persistCurrentSession() {
+    if (!currentFolder && notes.length === 0) return;
+    const openFiles = notes.map((n) => n.path).filter((p): p is string => p !== null);
+    const activeFile = activeNote?.path || '';
+    SaveSession(currentFolder || '', openFiles, activeFile).catch(() => {});
+  }
 
   let activeNote = $derived(notes.find((n) => n.id === activeNoteId) || null);
 
@@ -348,11 +383,129 @@
     }
   }
 
-  function toggleLiveMode() {
-    editorMode = editorMode === 'live' ? 'source' : 'live';
-    if (editorInstance) {
-      editorInstance.setMode(editorMode);
+  async function handleRenameFile(oldPath: string, newName: string) {
+    try {
+      const res = await RenameFile(oldPath, newName);
+      if (res) {
+        const existing = notes.find((n) => n.path === oldPath);
+        if (existing) {
+          existing.path = res.path;
+          existing.title = res.name;
+          existing.modTime = res.modTime;
+          notes = [...notes];
+          if (activeNoteId === existing.id) {
+            WindowSetTitle(`Tex - ${res.name}`);
+          }
+        }
+        await handleRefreshFolder();
+        persistCurrentSession();
+      }
+    } catch (err) {
+      console.error('Failed to rename file:', err);
     }
+  }
+
+  async function handlePasteImage(file: File) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      if (!base64) return;
+      try {
+        const relPath = await SavePastedImage(currentFolder || '', activeNote?.path || '', base64);
+        if (relPath && editorInstance) {
+          editorInstance.insertTextAtCursor(`![image](${relPath})\n`);
+        }
+      } catch (err) {
+        console.error('Failed to save pasted image:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
+  async function handleExportHTML() {
+    if (!activeNote) return;
+    try {
+      const title = activeNote.title || 'document';
+      const defaultName = (title.endsWith('.md') ? title.slice(0, -3) : title) + '.html';
+      const htmlDoc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'DM Mono', monospace, sans-serif;
+      line-height: 1.65;
+      color: #18181b;
+      background: #fafafa;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+    pre, code { font-family: 'DM Mono', monospace; background: #f4f4f5; border-radius: 4px; }
+    code { padding: 2px 6px; font-size: 0.9em; }
+    pre code { display: block; padding: 14px; overflow-x: auto; }
+    blockquote { border-left: 3px solid #0284c7; margin-left: 0; padding-left: 16px; color: #52525b; font-style: italic; }
+    table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+    th, td { border: 1px solid #e4e4e7; padding: 8px 14px; text-align: left; }
+    th { background: #f4f4f5; font-weight: 600; }
+    img { max-width: 100%; border-radius: 4px; }
+    h1, h2, h3, h4 { color: #09090b; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="content" style="white-space: pre-wrap; font-family: inherit;">${activeNote.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+</body>
+</html>`;
+      await ExportHTML(defaultName, htmlDoc);
+    } catch (err) {
+      console.error('Failed to export HTML:', err);
+    }
+  }
+
+  function setEditorMode(newMode: EditorMode) {
+    editorMode = newMode;
+    if (editorInstance) {
+      editorInstance.setMode(newMode === 'split' ? 'source' : newMode);
+    }
+    if (newMode === 'split') {
+      setTimeout(() => {
+        if (previewContainerEl && !previewInstance && activeNote) {
+          previewInstance = createMarkdownEditor(
+            previewContainerEl,
+            activeNote.content,
+            'live',
+            settings,
+            {
+              onChange: () => {},
+              onCursorChange: () => {},
+              onSaveShortcut: handleSave,
+              onFindShortcut: () => { showFindReplace = true; },
+              getWorkspaceFiles: getAllWorkspaceFiles,
+            },
+            true
+          );
+        } else if (previewInstance && activeNote) {
+          previewInstance.setContent(activeNote.content);
+        }
+      }, 50);
+    }
+  }
+
+  function cycleEditorMode() {
+    if (editorMode === 'live') setEditorMode('source');
+    else if (editorMode === 'source') setEditorMode('split');
+    else setEditorMode('live');
+  }
+
+  function toggleLiveMode() {
+    cycleEditorMode();
   }
 
   function toggleSidebar() {
@@ -376,7 +529,23 @@
   // Keyboard shortcut listener
   function handleKeyDown(e: KeyboardEvent) {
     if (e.ctrlKey || e.metaKey) {
-      if (e.key === 'b' || e.key === '\\') {
+      if ((e.key === 'p' || e.key === 'P' || e.key === 'k' || e.key === 'K') && !e.shiftKey) {
+        e.preventDefault();
+        showQuickSwitcher = true;
+        return;
+      } else if ((e.key === 'p' || e.key === 'P') && e.shiftKey) {
+        e.preventDefault();
+        handlePrint();
+        return;
+      } else if ((e.key === 'e' || e.key === 'E') && e.shiftKey) {
+        e.preventDefault();
+        handleExportHTML();
+        return;
+      } else if (e.key === '\\') {
+        e.preventDefault();
+        cycleEditorMode();
+        return;
+      } else if (e.key === 'b') {
         e.preventDefault();
         toggleSidebar();
       } else if (e.key === 'n') {
@@ -399,7 +568,7 @@
         if (activeNoteId) requestCloseNote(activeNoteId);
       } else if (e.key === 'e') {
         e.preventDefault();
-        toggleLiveMode();
+        cycleEditorMode();
       } else if (e.key === 'f') {
         e.preventDefault();
         showFindReplace = !showFindReplace;
@@ -434,6 +603,22 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeyDown);
 
+    window.addEventListener('tex:open-wikilink', async (e: Event) => {
+      const target = (e as CustomEvent<string>).detail;
+      if (!target) return;
+      const all = getAllWorkspaceFiles();
+      const cleanTarget = target.replace(/\.md$/i, '').toLowerCase();
+      const matched = all.find((f) => {
+        const base = f.split(/[/\\]/).pop()?.replace(/\.md$/i, '') || '';
+        return base.toLowerCase() === cleanTarget;
+      });
+      if (matched) {
+        await openFilePath(matched);
+      } else if (currentFolder) {
+        await handleCreateFileInFolder(currentFolder, target.endsWith('.md') ? target : `${target}.md`);
+      }
+    });
+
     // Apply initial settings
     applyAppSettings(settings);
 
@@ -448,7 +633,7 @@
       editorInstance = createMarkdownEditor(
         editorContainerEl,
         initialNote.content,
-        editorMode,
+        editorMode === 'split' ? 'source' : editorMode,
         settings,
         {
           onChange: (newContent) => {
@@ -457,6 +642,9 @@
               activeNote.isDirty = true;
               activeNote.preview = cleanPreview(newContent);
               notes = [...notes];
+              if (editorMode === 'split' && previewInstance) {
+                previewInstance.setContent(newContent);
+              }
             }
           },
           onCursorChange: (pos) => {
@@ -468,6 +656,8 @@
           onFindShortcut: () => {
             showFindReplace = true;
           },
+          onPasteImage: handlePasteImage,
+          getWorkspaceFiles: getAllWorkspaceFiles,
         }
       );
     }
@@ -580,6 +770,7 @@
       onCreateFileInFolder={handleCreateFileInFolder}
       onDeleteFile={handleDeleteFile}
       onMoveFile={handleMoveFile}
+      onRenameFile={handleRenameFile}
     />
 
     <!-- Main Workspace -->
@@ -618,12 +809,32 @@
         <div class="header-right">
           <button
             class="icon-btn"
-            title="Find & Replace (Ctrl+F)"
-            onclick={() => { showFindReplace = !showFindReplace; }}
+            title="Quick Switcher (Ctrl+P)"
+            onclick={() => { showQuickSwitcher = true; }}
             type="button"
           >
             <Search size={13} />
             <span>[find]</span>
+          </button>
+
+          <button
+            class="icon-btn"
+            title="Export as HTML (Ctrl+Shift+E)"
+            onclick={handleExportHTML}
+            type="button"
+          >
+            <Download size={13} />
+            <span>[export]</span>
+          </button>
+
+          <button
+            class="icon-btn"
+            title="Print to PDF (Ctrl+Shift+P)"
+            onclick={handlePrint}
+            type="button"
+          >
+            <Printer size={13} />
+            <span>[print]</span>
           </button>
 
           <button
@@ -638,16 +849,19 @@
 
           <button
             class="mode-badge-btn"
-            title="Toggle Live Render / Raw Source (Ctrl+E)"
-            onclick={toggleLiveMode}
+            title="Switch View Mode (Ctrl+\) [live, raw, split]"
+            onclick={cycleEditorMode}
             type="button"
           >
             {#if editorMode === 'live'}
               <Eye size={13} />
               <span>[live]</span>
-            {:else}
+            {:else if editorMode === 'source'}
               <Code size={13} />
               <span>[raw]</span>
+            {:else}
+              <Columns2 size={13} />
+              <span>[split]</span>
             {/if}
           </button>
 
@@ -664,16 +878,37 @@
       </header>
 
       <!-- Editor Container -->
-      <main class="editor-container">
+      <main class="editor-container" class:split-mode={editorMode === 'split'}>
         <FindReplace
           view={editorInstance?.view || null}
           isOpen={showFindReplace}
           onClose={() => { showFindReplace = false; }}
         />
-        <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
+        <div class="editor-panes-wrapper">
+          <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
+          {#if editorMode === 'split'}
+            <div class="split-divider"></div>
+            <div class="split-preview-wrapper" bind:this={previewContainerEl}></div>
+          {/if}
+        </div>
+
+        {#if settings.showWordCount !== false && activeNote}
+          <div class="stats-badge" title="{cursorInfo.charCount} chars, line {cursorInfo.line}, col {cursorInfo.col}">
+            <span>{cursorInfo.wordCount} words</span>
+            <span class="stat-sep">·</span>
+            <span>{Math.max(1, Math.ceil(cursorInfo.wordCount / 200))} min read</span>
+          </div>
+        {/if}
       </main>
     </div>
   </div>
+
+  <!-- Quick Switcher Modal (Ctrl+P) -->
+  <QuickSwitcher
+    bind:isOpen={showQuickSwitcher}
+    files={getAllWorkspaceFiles()}
+    onSelectFile={(f) => openFilePath(f)}
+  />
 
   <!-- Preferences / Settings Modal -->
   <SettingsModal
@@ -893,10 +1128,85 @@
     background-color: var(--bg-app);
   }
 
+  .editor-panes-wrapper {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+
   .cm-editor-wrapper {
     flex: 1;
     height: 100%;
     overflow: hidden;
+  }
+
+  .editor-container.split-mode .cm-editor-wrapper {
+    width: 50% !important;
+    max-width: 50% !important;
+  }
+
+  .split-divider {
+    width: 1px;
+    height: 100%;
+    background-color: var(--border);
+    flex-shrink: 0;
+  }
+
+  .split-preview-wrapper {
+    width: 50%;
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--bg-app);
+  }
+
+  .stats-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 18px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    border-radius: 0px;
+    pointer-events: none;
+    z-index: 10;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .stat-sep {
+    opacity: 0.4;
+  }
+
+  @media print {
+    :global(body) {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    .tui-window-titlebar,
+    .document-header,
+    .stats-badge,
+    :global(.sidebar) {
+      display: none !important;
+    }
+    .tex-app,
+    .app-body,
+    .main-workspace,
+    .editor-container,
+    .cm-editor-wrapper {
+      height: auto !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+    }
   }
 
   /* Modal */

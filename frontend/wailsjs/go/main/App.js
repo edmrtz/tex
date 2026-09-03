@@ -10,12 +10,20 @@ export function DeleteFile(arg1) {
   return window['go']['main']['App']['DeleteFile'](arg1);
 }
 
+export function ExportHTML(arg1, arg2) {
+  return window['go']['main']['App']['ExportHTML'](arg1, arg2);
+}
+
 export function GetInitialFiles() {
   return window['go']['main']['App']['GetInitialFiles']();
 }
 
 export function GetWorkspaceInfo() {
   return window['go']['main']['App']['GetWorkspaceInfo']();
+}
+
+export function LoadSession() {
+  return window['go']['main']['App']['LoadSession']();
 }
 
 export function MoveFile(arg1, arg2) {
@@ -30,6 +38,10 @@ export function OpenFileDialog() {
   return window['go']['main']['App']['OpenFileDialog']();
 }
 
+export function PrintDocument() {
+  return window['go']['main']['App']['PrintDocument']();
+}
+
 export function ReadDirectoryTree(arg1, arg2) {
   return window['go']['main']['App']['ReadDirectoryTree'](arg1, arg2);
 }
@@ -38,12 +50,24 @@ export function ReadFile(arg1) {
   return window['go']['main']['App']['ReadFile'](arg1);
 }
 
+export function RenameFile(arg1, arg2) {
+  return window['go']['main']['App']['RenameFile'](arg1, arg2);
+}
+
 export function SaveFile(arg1, arg2) {
   return window['go']['main']['App']['SaveFile'](arg1, arg2);
 }
 
 export function SaveFileDialog(arg1, arg2) {
   return window['go']['main']['App']['SaveFileDialog'](arg1, arg2);
+}
+
+export function SavePastedImage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SavePastedImage'](arg1, arg2, arg3);
+}
+
+export function SaveSession(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveSession'](arg1, arg2, arg3);
 }
 
 export function UnwatchFile(arg1) {
