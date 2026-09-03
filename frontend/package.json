@@ -12,11 +12,25 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",
     "@tsconfig/svelte": "^5.0.0",
+    "@types/katex": "^0.16.8",
     "svelte": "^5.55.7",
     "svelte-check": "^4.0.0",
     "svelte-preprocess": "^6.0.3",
     "tslib": "^2.4.0",
     "typescript": "^5.6.3",
     "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.2",
+    "@codemirror/view": "^6.43.11",
+    "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.3",
+    "@lezer/markdown": "^1.7.2",
+    "@lucide/svelte": "^1.40.0",
+    "katex": "^0.18.5",
+    "mermaid": "^11.17.2"
   }
 }
