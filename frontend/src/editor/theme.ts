@@ -43,6 +43,41 @@ export function createFontTheme(fontSizePx: number, uiFontKey: string, monoFontK
   });
 }
 
+export function createEditorWidthTheme(mode: 'full' | 'wide' | 'centered' = 'full') {
+  if (mode === 'centered') {
+    return EditorView.theme({
+      '.cm-scroller': {
+        justifyContent: 'center',
+      },
+      '.cm-content': {
+        maxWidth: '860px !important',
+        width: '100% !important',
+      },
+    });
+  }
+  if (mode === 'wide') {
+    return EditorView.theme({
+      '.cm-scroller': {
+        justifyContent: 'center',
+      },
+      '.cm-content': {
+        maxWidth: '1200px !important',
+        width: '100% !important',
+      },
+    });
+  }
+  // 'full' mode (default)
+  return EditorView.theme({
+    '.cm-scroller': {
+      justifyContent: 'flex-start',
+    },
+    '.cm-content': {
+      maxWidth: 'none !important',
+      width: '100% !important',
+    },
+  });
+}
+
 // Backward compatibility alias
 export const createFontSizeTheme = (sizePx: number) => createFontTheme(sizePx, 'system', 'default');
 
@@ -54,9 +89,11 @@ export const editorThemeDark = EditorView.theme({
   },
   '.cm-content': {
     caretColor: 'var(--accent, #38bdf8)',
-    padding: '16px 24px 64px 24px',
+    padding: '20px 48px 64px 36px',
     lineHeight: '1.7',
-    maxWidth: '960px',
+    maxWidth: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   '&.cm-focused': {
     outline: 'none',
@@ -301,9 +338,11 @@ export const editorThemeLight = EditorView.theme({
   },
   '.cm-content': {
     caretColor: 'var(--accent, #0284c7)',
-    padding: '16px 24px 64px 24px',
+    padding: '20px 48px 64px 36px',
     lineHeight: '1.7',
-    maxWidth: '960px',
+    maxWidth: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   '&.cm-focused': {
     outline: 'none',

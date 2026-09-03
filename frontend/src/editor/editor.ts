@@ -23,6 +23,7 @@ import {
   markdownHighlightStyleDark,
   markdownHighlightStyleLight,
   createFontTheme,
+  createEditorWidthTheme,
 } from './theme';
 import type { CursorPosition, EditorMode, AppSettings } from '../types';
 
@@ -46,6 +47,7 @@ export function createMarkdownEditor(
   const fontCompartment = new Compartment();
   const lineNumbersCompartment = new Compartment();
   const vimCompartment = new Compartment();
+  const widthCompartment = new Compartment();
 
   function getModeExtension(m: EditorMode): Extension {
     return m === 'live' ? [createLivePreviewPlugin()] : [];
@@ -64,6 +66,10 @@ export function createMarkdownEditor(
 
   function getFontExtension(s: AppSettings): Extension {
     return createFontTheme(s.fontSize, s.uiFont, s.monoFont);
+  }
+
+  function getWidthExtension(w: 'full' | 'wide' | 'centered' = 'full'): Extension {
+    return createEditorWidthTheme(w);
   }
 
   function getLineNumbersExtension(enabled: boolean): Extension {
@@ -131,6 +137,7 @@ export function createMarkdownEditor(
       }),
       vimCompartment.of(getVimExtension(settings.vimMode)),
       lineNumbersCompartment.of(getLineNumbersExtension(settings.lineNumbers)),
+      widthCompartment.of(getWidthExtension(settings.editorWidth)),
       modeCompartment.of(getModeExtension(mode)),
       themeCompartment.of(getThemeExtension(settings.theme)),
       highlightCompartment.of(getHighlightExtension(settings.theme)),
@@ -167,6 +174,7 @@ export function createMarkdownEditor(
           fontCompartment.reconfigure(getFontExtension(newSettings)),
           lineNumbersCompartment.reconfigure(getLineNumbersExtension(newSettings.lineNumbers)),
           vimCompartment.reconfigure(getVimExtension(newSettings.vimMode)),
+          widthCompartment.reconfigure(getWidthExtension(newSettings.editorWidth)),
         ],
       });
     },

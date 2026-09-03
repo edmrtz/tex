@@ -42,4 +42,5 @@ export interface AppSettings {
   lineNumbers: boolean;
   vimMode: boolean;
   fontSize: number;
+  editorWidth: 'full' | 'wide' | 'centered';
 }

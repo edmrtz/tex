@@ -49,6 +49,7 @@
     lineNumbers: false,
     vimMode: false,
     fontSize: 15,
+    editorWidth: 'full',
   };
 
   function loadSettings(): AppSettings {

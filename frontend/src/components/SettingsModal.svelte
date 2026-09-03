@@ -91,6 +91,42 @@
           </div>
         </div>
 
+        <!-- Section: Editor Width -->
+        <div class="settings-group">
+          <div class="group-header">
+            <span class="group-name">Editor Layout / Width</span>
+          </div>
+          <div class="tui-btn-group">
+            <button
+              class="tui-option-btn"
+              class:selected={draft.editorWidth === 'full'}
+              onclick={() => update('editorWidth', 'full')}
+              type="button"
+            >
+              <span class="indicator">{draft.editorWidth === 'full' ? '[x]' : '[ ]'}</span>
+              <span>Full Width</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.editorWidth === 'wide'}
+              onclick={() => update('editorWidth', 'wide')}
+              type="button"
+            >
+              <span class="indicator">{draft.editorWidth === 'wide' ? '[x]' : '[ ]'}</span>
+              <span>Wide (1200px)</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.editorWidth === 'centered'}
+              onclick={() => update('editorWidth', 'centered')}
+              type="button"
+            >
+              <span class="indicator">{draft.editorWidth === 'centered' ? '[x]' : '[ ]'}</span>
+              <span>Centered (860px)</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Section: UI Font -->
         <div class="settings-group">
           <div class="group-header">
