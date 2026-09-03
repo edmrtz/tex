@@ -1,30 +1,70 @@
 package main
 
 import (
+	"context"
 	"embed"
+	"os"
+	"path/filepath"
+
+	"tex/ipc"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	// Parse command line arguments (skip executable path)
+	var cliFiles []string
+	if len(os.Args) > 1 {
+		for _, arg := range os.Args[1:] {
+			if arg != "" && arg[0] != '-' {
+				abs, err := filepath.Abs(arg)
+				if err == nil {
+					cliFiles = append(cliFiles, abs)
+				} else {
+					cliFiles = append(cliFiles, arg)
+				}
+			}
+		}
+	}
+
+	// Single instance check: if another instance is running, pass CLI files and exit
+	if ipc.TryForwardCLI(cliFiles) {
+		os.Exit(0)
+	}
+
 	// Create an instance of the app structure
-	app := NewApp()
+	app := NewApp(cliFiles)
+
+	// Context for background IPC listener
+	ipcCtx, cancelIPC := context.WithCancel(context.Background())
+	defer cancelIPC()
+
+	_, _ = ipc.StartServer(ipcCtx, func(receivedFiles []string) {
+		if app.ctx != nil {
+			runtime.WindowUnminimise(app.ctx)
+			runtime.WindowShow(app.ctx)
+			runtime.Show(app.ctx)
+			runtime.EventsEmit(app.ctx, "cli:open-files", receivedFiles)
+		}
+	})
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "tex",
-		Width:  1024,
-		Height: 768,
+		Title:  "Tex",
+		Width:  1080,
+		Height: 740,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 255}, // Dark zinc background
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,
 		},
