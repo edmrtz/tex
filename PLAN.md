@@ -29,7 +29,7 @@ graph TD
         subgraph "CodeMirror 6 Markdown Extensions"
             EditorHost --> LivePreview["Obsidian-Style Live Preview Decorator"]
             EditorHost --> KaTeXWidget["KaTeX Widget (Inline $ and Block $$)"]
-            EditorHost --> MermaidWidget["Mermaid SVG Widget (```mermaid)"]
+            EditorHost --> MermaidWidget["Mermaid SVG Widget"]
             EditorHost --> GFM["GFM Extensions (Tables, Task Lists)"]
         end
     end
@@ -63,7 +63,7 @@ graph TD
    - Quick toggle between **Live Preview** and **Raw Source** mode (`Ctrl+E`).
 3. **KaTeX & Mermaid Editing**:
    - Inline `$x^2$` and block `$$\sum_{i=1}^n i$$` render as mathematical notation.
-   - ````mermaid` blocks render as responsive SVG diagrams.
+   - `mermaid` blocks render as responsive SVG diagrams.
    - Clicking on a formula or diagram reveals the raw source text for immediate editing.
 4. **CLI & Desktop Launch**:
    - `tex`: Launches blank untitled tab.
@@ -77,21 +77,21 @@ graph TD
 
 ## 4. Implementation Roadmap
 
-- [ ] **Phase 1: Project Scaffold & Desktop Harness**
+- [x] **Phase 1: Project Scaffold & Desktop Harness**
   - Initialize Wails v2 project with Svelte 5 + TypeScript.
   - Implement CLI argument receiver and single-instance IPC handler in Go.
   - Verify build on Linux and Windows configurations.
-- [ ] **Phase 2: Tabbed Buffer Management & Native File I/O**
+- [x] **Phase 2: Tabbed Buffer Management & Native File I/O**
   - Tab state management (add tab, close tab, dirty status, switch active).
   - Go bindings for `ReadFile`, `WriteFile` (atomic), `OpenFileDialog`, `SaveFileDialog`.
   - External modification detection (`fsnotify`).
-- [ ] **Phase 3: CodeMirror 6 Editor & Live Preview**
+- [x] **Phase 3: CodeMirror 6 Editor & Live Preview**
   - Integrate CodeMirror 6 with GitHub-Flavored Markdown.
   - Build the Live Preview decoration plugin (inline header sizing, syntax hiding/revealing on cursor).
   - Implement Raw Source / Live Preview toggle (`Ctrl+E`).
-- [ ] **Phase 4: KaTeX & Mermaid Live Rendering**
+- [x] **Phase 4: KaTeX & Mermaid Live Rendering**
   - KaTeX plugin for inline `$math$` and block `$$math$$`.
-  - Mermaid dynamic renderer for ````mermaid` fenced code blocks.
+  - Mermaid dynamic renderer for `mermaid` fenced code blocks.
   - Click-to-edit cursor positioning.
 - [ ] **Phase 5: Polish & Packaging**
   - Keyboard shortcuts (`Ctrl+N`, `Ctrl+O`, `Ctrl+S`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+F`).

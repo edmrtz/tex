@@ -97,28 +97,9 @@ function computeDecorations(state: EditorState): DecorationSet {
     return false;
   }
 
-  // 1. Mermaid Code Blocks: ```mermaid ... ```
-  const mermaidRegex = /```mermaid[^\n]*\r?\n([\s\S]*?)```/g;
-  let match: RegExpExecArray | null;
-  while ((match = mermaidRegex.exec(docText)) !== null) {
-    const matchFrom = match.index;
-    const matchTo = match.index + match[0].length;
-    const hasCursor = cursorInside(state, matchFrom, matchTo);
-    if (!hasCursor) {
-      const mermaidCode = match[1];
-      addReplacement(
-        matchFrom,
-        matchTo,
-        Decoration.replace({
-          widget: new MermaidWidget(mermaidCode),
-          block: true,
-        })
-      );
-    }
-  }
-
-  // 2. Block Math: $$ ... $$
+  // 1. Block Math: $$ ... $$
   const blockMathRegex = /(?<!\\)\$\$([\s\S]+?)\$\$/g;
+  let match: RegExpExecArray | null;
   while ((match = blockMathRegex.exec(docText)) !== null) {
     const matchFrom = match.index;
     const matchTo = match.index + match[0].length;
@@ -138,7 +119,7 @@ function computeDecorations(state: EditorState): DecorationSet {
     }
   }
 
-  // 3. Process Lezer Markdown AST
+  // 2. Process Lezer Markdown AST
   syntaxTree(state).iterate({
     from: 0,
     to: state.doc.length,
@@ -149,6 +130,53 @@ function computeDecorations(state: EditorState): DecorationSet {
 
       // If this AST node is within a block that was already replaced (like Mermaid or Block Math), skip it
       if (isOccupied(nodeFrom, nodeTo)) return;
+
+      // Fenced Code Blocks (```language ... ``` and ```mermaid ... ```)
+      if (nodeName === 'FencedCode') {
+        let info = '';
+        let code = '';
+        const cursor = node.node.cursor();
+        if (cursor.firstChild()) {
+          do {
+            if (cursor.name === 'CodeInfo') {
+              info = state.doc.sliceString(cursor.from, cursor.to).trim().toLowerCase();
+            } else if (cursor.name === 'CodeText') {
+              code = state.doc.sliceString(cursor.from, cursor.to);
+            }
+          } while (cursor.nextSibling());
+        }
+
+        // Mermaid diagrams render as SVG widget when cursor is outside
+        if (info === 'mermaid') {
+          const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+          if (!hasCursor) {
+            addReplacement(
+              nodeFrom,
+              nodeTo,
+              Decoration.replace({
+                widget: new MermaidWidget(code),
+                block: true,
+              })
+            );
+            return;
+          }
+        }
+
+        // Programming code blocks or editing mermaid: style lines with codeblock background
+        const startLine = state.doc.lineAt(nodeFrom);
+        const endLine = state.doc.lineAt(nodeTo);
+        for (let l = startLine.number; l <= endLine.number; l++) {
+          const line = state.doc.line(l);
+          ranges.push(
+            Decoration.line({ class: 'cm-codeblock-line' }).range(line.from, line.from)
+          );
+        }
+      }
+
+      // CodeMark and CodeInfo inside FencedCode (subtle dimmed styling for fences)
+      if ((nodeName === 'CodeMark' || nodeName === 'CodeInfo') && node.node.parent?.name === 'FencedCode') {
+        ranges.push(Decoration.mark({ class: 'cm-codeblock-fence' }).range(nodeFrom, nodeTo));
+      }
 
       // Header styling (ATXHeading1 to ATXHeading6)
       const headingMatch = nodeName.match(/^ATXHeading(\d)$/);

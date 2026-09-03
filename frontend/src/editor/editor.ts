@@ -13,8 +13,9 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
+import { syntaxHighlighting } from '@codemirror/language';
 import { createLivePreviewPlugin } from './livePreview';
-import { editorTheme, createFontSizeTheme } from './theme';
+import { editorTheme, createFontSizeTheme, markdownHighlightStyle } from './theme';
 import type { CursorPosition, EditorMode } from '../types';
 
 export interface EditorCallbacks {
@@ -85,6 +86,7 @@ export function createMarkdownEditor(
         codeLanguages: languages,
         addKeymap: true,
       }),
+      syntaxHighlighting(markdownHighlightStyle, { fallback: true }),
       modeCompartment.of(getModeExtension(mode)),
       fontSizeCompartment.of(createFontSizeTheme(initialFontSize)),
       editorTheme,

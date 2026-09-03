@@ -1,4 +1,6 @@
 import { EditorView } from '@codemirror/view';
+import { HighlightStyle } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
 
 export function createFontSizeTheme(sizePx: number) {
   return EditorView.theme({
@@ -97,6 +99,18 @@ export const editorTheme = EditorView.theme({
     borderRadius: '4px',
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
     fontSize: '0.9em',
+  },
+  // Fenced Code Blocks
+  '.cm-codeblock-line': {
+    backgroundColor: '#161619',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.9em',
+    paddingLeft: '16px',
+    paddingRight: '16px',
+    lineHeight: '1.6',
+  },
+  '.cm-codeblock-fence': {
+    color: '#52525b',
   },
   '.cm-blockquote-line': {
     borderLeft: '3px solid #38bdf8',
@@ -252,3 +266,24 @@ export const editorTheme = EditorView.theme({
     color: '#fca5a5',
   },
 });
+
+export const markdownHighlightStyle = HighlightStyle.define([
+  { tag: t.keyword, color: '#c084fc', fontWeight: '500' }, // purple-400
+  { tag: [t.name, t.deleted, t.character, t.macroName], color: '#f87171' }, // red-400
+  { tag: [t.propertyName], color: '#38bdf8' }, // sky-400
+  { tag: [t.variableName], color: '#f4f4f5' }, // zinc-100
+  { tag: [t.function(t.variableName), t.labelName], color: '#60a5fa' }, // blue-400
+  { tag: [t.color, t.constant(t.name), t.standard(t.name)], color: '#fb923c' }, // orange-400
+  { tag: [t.definition(t.name), t.separator], color: '#e4e4e7' },
+  { tag: [t.typeName, t.className, t.number, t.changed, t.annotation, t.modifier, t.self, t.namespace], color: '#facc15' }, // yellow-400
+  { tag: [t.operator, t.operatorKeyword, t.url, t.escape, t.regexp, t.link, t.special(t.string)], color: '#2dd4bf' }, // teal-400
+  { tag: [t.meta, t.comment], color: '#71717a', fontStyle: 'italic' }, // zinc-500
+  { tag: t.strong, fontWeight: 'bold' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.link, color: '#38bdf8', textDecoration: 'underline' },
+  { tag: t.heading, fontWeight: 'bold', color: '#ffffff' },
+  { tag: [t.atom, t.bool, t.special(t.variableName)], color: '#f472b6' }, // pink-400
+  { tag: [t.processingInstruction, t.string, t.inserted], color: '#4ade80' }, // green-400
+  { tag: t.invalid, color: '#ef4444' },
+]);
