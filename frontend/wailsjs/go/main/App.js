@@ -6,8 +6,20 @@ export function GetInitialFiles() {
   return window['go']['main']['App']['GetInitialFiles']();
 }
 
+export function GetWorkspaceInfo() {
+  return window['go']['main']['App']['GetWorkspaceInfo']();
+}
+
+export function OpenDirectoryDialog() {
+  return window['go']['main']['App']['OpenDirectoryDialog']();
+}
+
 export function OpenFileDialog() {
   return window['go']['main']['App']['OpenFileDialog']();
+}
+
+export function ReadDirectoryTree(arg1, arg2) {
+  return window['go']['main']['App']['ReadDirectoryTree'](arg1, arg2);
 }
 
 export function ReadFile(arg1) {

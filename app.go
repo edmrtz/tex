@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +21,23 @@ type FileInfo struct {
 	Content string `json:"content"`
 	ModTime int64  `json:"modTime"`
 	Size    int64  `json:"size"`
+}
+
+// FileItem represents a file or folder in a workspace tree
+type FileItem struct {
+	Path     string     `json:"path"`
+	Name     string     `json:"name"`
+	IsDir    bool       `json:"isDir"`
+	Children []FileItem `json:"children,omitempty"`
+	ModTime  int64      `json:"modTime"`
+	Size     int64      `json:"size"`
+}
+
+// WorkspaceInfo represents initial workspace and folder status
+type WorkspaceInfo struct {
+	CurrentDir   string     `json:"currentDir"`
+	InitialFiles []string   `json:"initialFiles"`
+	InitialTree  []FileItem `json:"initialTree"`
 }
 
 // App struct
@@ -106,6 +125,121 @@ func (a *App) SaveFileDialog(defaultFilename string) (string, error) {
 		return "", err
 	}
 	return selected, nil
+}
+
+// OpenDirectoryDialog prompts the user to select a workspace folder
+func (a *App) OpenDirectoryDialog() (string, error) {
+	selected, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Open Workspace Folder",
+	})
+	if err != nil {
+		return "", err
+	}
+	return selected, nil
+}
+
+// ReadDirectoryTree reads directory contents recursively for markdown and text files
+func (a *App) ReadDirectoryTree(dirPath string, maxDepth int) ([]FileItem, error) {
+	cleanPath := filepath.Clean(dirPath)
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		absPath = cleanPath
+	}
+
+	if maxDepth <= 0 {
+		maxDepth = 3
+	}
+
+	return a.readTreeRecursive(absPath, 1, maxDepth)
+}
+
+func (a *App) readTreeRecursive(currentDir string, depth, maxDepth int) ([]FileItem, error) {
+	if depth > maxDepth {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(currentDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var dirs []FileItem
+	var files []FileItem
+
+	for _, entry := range entries {
+		name := entry.Name()
+		// Skip hidden files, system files, and common build/dep folders
+		if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "dist" || name == "build" {
+			continue
+		}
+
+		fullPath := filepath.Join(currentDir, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		if entry.IsDir() {
+			children, _ := a.readTreeRecursive(fullPath, depth+1, maxDepth)
+			dirs = append(dirs, FileItem{
+				Path:     fullPath,
+				Name:     name,
+				IsDir:    true,
+				Children: children,
+				ModTime:  info.ModTime().UnixMilli(),
+			})
+		} else {
+			ext := strings.ToLower(filepath.Ext(name))
+			if ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".txt" {
+				files = append(files, FileItem{
+					Path:    fullPath,
+					Name:    name,
+					IsDir:   false,
+					ModTime: info.ModTime().UnixMilli(),
+					Size:    info.Size(),
+				})
+			}
+		}
+	}
+
+	sort.Slice(dirs, func(i, j int) bool {
+		return strings.ToLower(dirs[i].Name) < strings.ToLower(dirs[j].Name)
+	})
+	sort.Slice(files, func(i, j int) bool {
+		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
+	})
+
+	return append(dirs, files...), nil
+}
+
+// GetWorkspaceInfo returns current directory and startup files
+func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = ""
+	}
+
+	folder := cwd
+	var files []string
+	for _, f := range a.initialFiles {
+		fi, err := os.Stat(f)
+		if err == nil && fi.IsDir() {
+			folder = f
+		} else {
+			files = append(files, f)
+		}
+	}
+
+	var tree []FileItem
+	if folder != "" {
+		tree, _ = a.ReadDirectoryTree(folder, 3)
+	}
+
+	return &WorkspaceInfo{
+		CurrentDir:   folder,
+		InitialFiles: files,
+		InitialTree:  tree,
+	}, nil
 }
 
 // ReadFile reads and returns the file content and metadata

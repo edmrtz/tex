@@ -4,7 +4,13 @@ import {main} from '../models';
 
 export function GetInitialFiles():Promise<Array<string>>;
 
+export function GetWorkspaceInfo():Promise<main.WorkspaceInfo>;
+
+export function OpenDirectoryDialog():Promise<string>;
+
 export function OpenFileDialog():Promise<string>;
+
+export function ReadDirectoryTree(arg1:string,arg2:number):Promise<Array<main.FileItem>>;
 
 export function ReadFile(arg1:string):Promise<main.FileInfo>;
 
