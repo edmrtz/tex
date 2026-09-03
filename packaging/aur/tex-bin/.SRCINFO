@@ -10,6 +10,6 @@ pkgbase = tex-bin
 	provides = tex
 	conflicts = tex
 	source = https://github.com/edmrtz/tex/releases/download/v0.1.0/tex-linux-amd64.tar.gz
-	sha256sums = SKIP
+	sha256sums = 376c4e1e21fe53d9863517c3dce8bb0db920f7bcb893de650b7ed7c525038600
 
 pkgname = tex-bin

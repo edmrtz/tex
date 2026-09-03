@@ -10,7 +10,7 @@ depends=('gtk3' 'webkit2gtk-4.1')
 provides=('tex')
 conflicts=('tex')
 source=("https://github.com/edmrtz/tex/releases/download/v${pkgver}/tex-linux-amd64.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('376c4e1e21fe53d9863517c3dce8bb0db920f7bcb893de650b7ed7c525038600')
 
 package() {
   cd "${srcdir}"
