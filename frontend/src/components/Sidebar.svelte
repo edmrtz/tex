@@ -9,6 +9,7 @@
     X,
     PanelLeftClose,
     RefreshCw,
+    Settings as SettingsIcon,
   } from '@lucide/svelte';
   import FileTreeNode from './FileTreeNode.svelte';
 
@@ -23,6 +24,7 @@
     onOpenFolder,
     onRefreshFolder,
     onToggleSidebar,
+    onOpenSettings,
   }: {
     isOpen: boolean;
     activePath: string | null;
@@ -34,6 +36,7 @@
     onOpenFolder: () => void;
     onRefreshFolder: () => void;
     onToggleSidebar: () => void;
+    onOpenSettings?: () => void;
   } = $props();
 
   let searchQuery = $state('');
@@ -106,6 +109,16 @@
         >
           <FolderOpen size={16} />
         </button>
+        {#if onOpenSettings}
+          <button
+            class="action-btn"
+            title="Preferences (Ctrl+,)"
+            onclick={onOpenSettings}
+            type="button"
+          >
+            <SettingsIcon size={15} />
+          </button>
+        {/if}
         <button
           class="action-btn"
           title="Collapse Sidebar (Ctrl+B)"

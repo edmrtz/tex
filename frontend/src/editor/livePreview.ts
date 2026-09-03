@@ -45,6 +45,30 @@ class TaskCheckboxWidget extends WidgetType {
   }
 }
 
+class CodeBlockHeaderWidget extends WidgetType {
+  constructor(readonly lang: string) {
+    super();
+  }
+
+  eq(other: CodeBlockHeaderWidget) {
+    return other.lang === this.lang;
+  }
+
+  toDOM() {
+    const div = document.createElement('div');
+    div.className = 'cm-codeblock-header';
+    const langSpan = document.createElement('span');
+    langSpan.className = 'cm-codeblock-lang';
+    langSpan.textContent = this.lang ? this.lang.toUpperCase() : 'CODE';
+    div.appendChild(langSpan);
+    return div;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
 class HorizontalRuleWidget extends WidgetType {
   toDOM() {
     const hr = document.createElement('hr');
@@ -146,9 +170,10 @@ function computeDecorations(state: EditorState): DecorationSet {
           } while (cursor.nextSibling());
         }
 
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+
         // Mermaid diagrams render as SVG widget when cursor is outside
         if (info === 'mermaid') {
-          const hasCursor = cursorInside(state, nodeFrom, nodeTo);
           if (!hasCursor) {
             addReplacement(
               nodeFrom,
@@ -162,18 +187,48 @@ function computeDecorations(state: EditorState): DecorationSet {
           }
         }
 
-        // Programming code blocks or editing mermaid: style lines with codeblock background
         const startLine = state.doc.lineAt(nodeFrom);
         const endLine = state.doc.lineAt(nodeTo);
-        for (let l = startLine.number; l <= endLine.number; l++) {
-          const line = state.doc.line(l);
-          ranges.push(
-            Decoration.line({ class: 'cm-codeblock-line' }).range(line.from, line.from)
+
+        if (!hasCursor && startLine.number < endLine.number) {
+          // Hide opening fence and replace with CodeBlockHeaderWidget
+          addReplacement(
+            startLine.from,
+            startLine.to,
+            Decoration.replace({
+              widget: new CodeBlockHeaderWidget(info),
+            })
           );
+
+          // Style interior lines
+          for (let l = startLine.number + 1; l < endLine.number; l++) {
+            const line = state.doc.line(l);
+            const isLast = l === endLine.number - 1;
+            ranges.push(
+              Decoration.line({
+                class: isLast ? 'cm-codeblock-line cm-codeblock-line-last' : 'cm-codeblock-line',
+              }).range(line.from, line.from)
+            );
+          }
+
+          // Hide closing fence line
+          addReplacement(
+            endLine.from,
+            endLine.to,
+            Decoration.replace({})
+          );
+        } else {
+          // While editing inside the block: reveal fences and style lines
+          for (let l = startLine.number; l <= endLine.number; l++) {
+            const line = state.doc.line(l);
+            ranges.push(
+              Decoration.line({ class: 'cm-codeblock-line' }).range(line.from, line.from)
+            );
+          }
         }
       }
 
-      // CodeMark and CodeInfo inside FencedCode (subtle dimmed styling for fences)
+      // CodeMark and CodeInfo inside FencedCode (subtle styling for fences when editing)
       if ((nodeName === 'CodeMark' || nodeName === 'CodeInfo') && node.node.parent?.name === 'FencedCode') {
         ranges.push(Decoration.mark({ class: 'cm-codeblock-fence' }).range(nodeFrom, nodeTo));
       }

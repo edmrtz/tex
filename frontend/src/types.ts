@@ -34,3 +34,12 @@ export interface CursorPosition {
   wordCount: number;
   charCount: number;
 }
+
+export interface AppSettings {
+  theme: 'dark' | 'light';
+  uiFont: 'system' | 'inter' | 'serif';
+  monoFont: 'default' | 'jetbrains' | 'fira' | 'consolas';
+  lineNumbers: boolean;
+  vimMode: boolean;
+  fontSize: number;
+}

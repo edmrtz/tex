@@ -8,34 +8,70 @@ import {
   keymap,
   highlightActiveLine,
   dropCursor,
+  lineNumbers,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
+import { search } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
+import { vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
-import { editorTheme, createFontSizeTheme, markdownHighlightStyle } from './theme';
-import type { CursorPosition, EditorMode } from '../types';
+import {
+  editorThemeDark,
+  editorThemeLight,
+  markdownHighlightStyleDark,
+  markdownHighlightStyleLight,
+  createFontTheme,
+} from './theme';
+import type { CursorPosition, EditorMode, AppSettings } from '../types';
 
 export interface EditorCallbacks {
   onChange: (newContent: string) => void;
   onCursorChange: (pos: CursorPosition) => void;
   onSaveShortcut: () => void;
+  onFindShortcut: () => void;
 }
 
 export function createMarkdownEditor(
   parent: HTMLElement,
   initialContent: string,
   mode: EditorMode,
-  initialFontSize: number,
+  settings: AppSettings,
   callbacks: EditorCallbacks
 ) {
   const modeCompartment = new Compartment();
-  const fontSizeCompartment = new Compartment();
+  const themeCompartment = new Compartment();
+  const highlightCompartment = new Compartment();
+  const fontCompartment = new Compartment();
+  const lineNumbersCompartment = new Compartment();
+  const vimCompartment = new Compartment();
 
   function getModeExtension(m: EditorMode): Extension {
     return m === 'live' ? [createLivePreviewPlugin()] : [];
+  }
+
+  function getThemeExtension(t: 'dark' | 'light'): Extension {
+    return t === 'light' ? editorThemeLight : editorThemeDark;
+  }
+
+  function getHighlightExtension(t: 'dark' | 'light'): Extension {
+    return syntaxHighlighting(
+      t === 'light' ? markdownHighlightStyleLight : markdownHighlightStyleDark,
+      { fallback: true }
+    );
+  }
+
+  function getFontExtension(s: AppSettings): Extension {
+    return createFontTheme(s.fontSize, s.uiFont, s.monoFont);
+  }
+
+  function getLineNumbersExtension(enabled: boolean): Extension {
+    return enabled ? lineNumbers() : [];
+  }
+
+  function getVimExtension(enabled: boolean): Extension {
+    return enabled ? vim() : [];
   }
 
   const updateListener = EditorView.updateListener.of((update) => {
@@ -69,7 +105,13 @@ export function createMarkdownEditor(
         return true;
       },
     },
-    ...searchKeymap,
+    {
+      key: 'Mod-f',
+      run: () => {
+        callbacks.onFindShortcut();
+        return true;
+      },
+    },
   ]);
 
   const state = EditorState.create({
@@ -86,10 +128,12 @@ export function createMarkdownEditor(
         codeLanguages: languages,
         addKeymap: true,
       }),
-      syntaxHighlighting(markdownHighlightStyle, { fallback: true }),
+      vimCompartment.of(getVimExtension(settings.vimMode)),
+      lineNumbersCompartment.of(getLineNumbersExtension(settings.lineNumbers)),
       modeCompartment.of(getModeExtension(mode)),
-      fontSizeCompartment.of(createFontSizeTheme(initialFontSize)),
-      editorTheme,
+      themeCompartment.of(getThemeExtension(settings.theme)),
+      highlightCompartment.of(getHighlightExtension(settings.theme)),
+      fontCompartment.of(getFontExtension(settings)),
       updateListener,
       EditorView.lineWrapping,
     ],
@@ -114,13 +158,16 @@ export function createMarkdownEditor(
         effects: modeCompartment.reconfigure(getModeExtension(newMode)),
       });
     },
-    setFontSize(sizePx: number) {
+    applySettings(newSettings: AppSettings) {
       view.dispatch({
-        effects: fontSizeCompartment.reconfigure(createFontSizeTheme(sizePx)),
+        effects: [
+          themeCompartment.reconfigure(getThemeExtension(newSettings.theme)),
+          highlightCompartment.reconfigure(getHighlightExtension(newSettings.theme)),
+          fontCompartment.reconfigure(getFontExtension(newSettings)),
+          lineNumbersCompartment.reconfigure(getLineNumbersExtension(newSettings.lineNumbers)),
+          vimCompartment.reconfigure(getVimExtension(newSettings.vimMode)),
+        ],
       });
-    },
-    openSearch() {
-      openSearchPanel(view);
     },
     focus() {
       view.focus();

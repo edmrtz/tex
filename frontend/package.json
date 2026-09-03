@@ -32,6 +32,7 @@
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.7.2",
     "@lucide/svelte": "^1.40.0",
+    "@replit/codemirror-vim": "^6.4.0",
     "katex": "^0.18.5",
     "mermaid": "^11.17.2"
   }

@@ -1,8 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { NoteDocument, FileTreeItem, EditorMode, CursorPosition } from './types';
+  import type {
+    NoteDocument,
+    FileTreeItem,
+    EditorMode,
+    CursorPosition,
+    AppSettings,
+  } from './types';
   import { createMarkdownEditor } from './editor/editor';
+  import { getUiFontFamily, getMonoFontFamily } from './editor/theme';
   import Sidebar from './components/Sidebar.svelte';
+  import FindReplace from './components/FindReplace.svelte';
+  import SettingsModal from './components/SettingsModal.svelte';
   import {
     GetInitialFiles,
     GetWorkspaceInfo,
@@ -27,7 +36,25 @@
     Search,
     Eye,
     Code,
+    Settings as SettingsIcon,
   } from '@lucide/svelte';
+
+  const defaultSettings: AppSettings = {
+    theme: 'dark',
+    uiFont: 'system',
+    monoFont: 'default',
+    lineNumbers: false,
+    vimMode: false,
+    fontSize: 15,
+  };
+
+  function loadSettings(): AppSettings {
+    try {
+      const raw = localStorage.getItem('tex:settings');
+      if (raw) return { ...defaultSettings, ...JSON.parse(raw) };
+    } catch {}
+    return defaultSettings;
+  }
 
   // State
   let sidebarOpen = $state<boolean>(true);
@@ -36,16 +63,33 @@
   let currentFolder = $state<string>('');
   let folderTree = $state<FileTreeItem[]>([]);
   let editorMode = $state<EditorMode>('live');
-  let fontSize = $state<number>(15);
+  let settings = $state<AppSettings>(loadSettings());
+  let showFindReplace = $state<boolean>(false);
+  let showSettingsModal = $state<boolean>(false);
   let cursorInfo = $state<CursorPosition>({ line: 1, col: 1, wordCount: 0, charCount: 0 });
+
+  function applyAppSettings(newSettings: AppSettings) {
+    settings = newSettings;
+    try {
+      localStorage.setItem('tex:settings', JSON.stringify(newSettings));
+    } catch {}
+
+    document.documentElement.setAttribute('data-theme', newSettings.theme);
+    document.documentElement.style.setProperty('--font-ui', getUiFontFamily(newSettings.uiFont));
+    document.documentElement.style.setProperty('--font-mono', getMonoFontFamily(newSettings.monoFont));
+
+    if (editorInstance) {
+      editorInstance.applySettings(newSettings);
+    }
+  }
 
   // Confirmation modal state
   let showCloseModal = $state<boolean>(false);
   let pendingCloseNoteId = $state<string | null>(null);
 
   // Editor DOM reference & CM6 instance
-  let editorContainerEl: HTMLDivElement | null = null;
-  let editorInstance: ReturnType<typeof createMarkdownEditor> | null = null;
+  let editorContainerEl = $state<HTMLDivElement | null>(null);
+  let editorInstance = $state<ReturnType<typeof createMarkdownEditor> | null>(null);
 
   let activeNote = $derived(notes.find((n) => n.id === activeNoteId) || null);
 
@@ -250,18 +294,17 @@
   }
 
   function zoomIn() {
-    fontSize = Math.min(32, fontSize + 1);
-    editorInstance?.setFontSize(fontSize);
+    const newSize = Math.min(32, settings.fontSize + 1);
+    applyAppSettings({ ...settings, fontSize: newSize });
   }
 
   function zoomOut() {
-    fontSize = Math.max(10, fontSize - 1);
-    editorInstance?.setFontSize(fontSize);
+    const newSize = Math.max(10, settings.fontSize - 1);
+    applyAppSettings({ ...settings, fontSize: newSize });
   }
 
   function zoomReset() {
-    fontSize = 15;
-    editorInstance?.setFontSize(fontSize);
+    applyAppSettings({ ...settings, fontSize: 15 });
   }
 
   // Keyboard shortcut listener
@@ -293,7 +336,13 @@
         toggleLiveMode();
       } else if (e.key === 'f') {
         e.preventDefault();
-        editorInstance?.openSearch();
+        showFindReplace = !showFindReplace;
+      } else if (e.key === 'h') {
+        e.preventDefault();
+        showFindReplace = true;
+      } else if (e.key === ',') {
+        e.preventDefault();
+        showSettingsModal = !showSettingsModal;
       } else if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         zoomIn();
@@ -319,10 +368,13 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeyDown);
 
+    // Apply initial settings
+    applyAppSettings(settings);
+
     // Initialize initial note
     const initialNote = createNewNote(
       'Welcome.md',
-      `# Welcome to Tex ⚡\n\nA fast, distraction-free markdown notepad with live rendering.\n\n## Math Support (KaTeX)\nInline math: $E = mc^2$\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## Live Checklists\n- [x] Lightweight & Fast\n- [x] CodeMirror 6 live preview\n- [x] KaTeX math & Mermaid diagrams\n\n## Diagram Support (Mermaid)\n\`\`\`mermaid\ngraph LR\n  A[Write Markdown] --> B(Live Preview)\n  B --> C{Formulas & Diagrams}\n  C -->|Math| D[KaTeX]\n  C -->|Flow| E[Mermaid]\n\`\`\`\n\n### Shortcuts\n* **Ctrl+B**: Toggle Sidebar\n* **Ctrl+N**: New note\n* **Ctrl+O**: Open file\n* **Ctrl+Shift+O**: Open folder\n* **Ctrl+S**: Save file\n* **Ctrl+W**: Close note\n* **Ctrl+E**: Toggle Live Preview & Raw Source\n* **Ctrl+F**: Find & Replace\n* **Ctrl+= / Ctrl+-**: Zoom font\n* **Ctrl+Tab**: Cycle notes`
+      `# Welcome to Tex ⚡\n\nA fast, distraction-free markdown notepad with live rendering.\n\n## Math Support (KaTeX)\nInline math: $E = mc^2$\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## Live Checklists\n- [x] Lightweight & Fast\n- [x] CodeMirror 6 live preview\n- [x] KaTeX math & Mermaid diagrams\n\n## Diagram Support (Mermaid)\n\`\`\`mermaid\ngraph LR\n  A[Write Markdown] --> B(Live Preview)\n  B --> C{Formulas & Diagrams}\n  C -->|Math| D[KaTeX]\n  C -->|Flow| E[Mermaid]\n\`\`\`\n\n### Shortcuts\n* **Ctrl+B**: Toggle Sidebar\n* **Ctrl+N**: New note\n* **Ctrl+O**: Open file\n* **Ctrl+Shift+O**: Open folder\n* **Ctrl+S**: Save file\n* **Ctrl+W**: Close note\n* **Ctrl+E**: Toggle Live Preview & Raw Source\n* **Ctrl+F**: Find & Replace\n* **Ctrl+,**: Preferences\n* **Ctrl+= / Ctrl+-**: Zoom font\n* **Ctrl+Tab**: Cycle notes`
     );
 
     notes = [initialNote];
@@ -334,7 +386,7 @@
         editorContainerEl,
         initialNote.content,
         editorMode,
-        fontSize,
+        settings,
         {
           onChange: (newContent) => {
             if (activeNote) {
@@ -349,6 +401,9 @@
           },
           onSaveShortcut: () => {
             handleSave();
+          },
+          onFindShortcut: () => {
+            showFindReplace = true;
           },
         }
       );
@@ -436,6 +491,7 @@
     onOpenFolder={handleOpenFolder}
     onRefreshFolder={handleRefreshFolder}
     onToggleSidebar={toggleSidebar}
+    onOpenSettings={() => { showSettingsModal = true; }}
   />
 
   <!-- Main Workspace -->
@@ -475,7 +531,7 @@
         <button
           class="icon-btn"
           title="Find & Replace (Ctrl+F)"
-          onclick={() => editorInstance?.openSearch()}
+          onclick={() => { showFindReplace = !showFindReplace; }}
           type="button"
         >
           <Search size={14} />
@@ -506,35 +562,36 @@
             <span>Raw</span>
           {/if}
         </button>
+
+        <button
+          class="icon-btn"
+          title="Preferences (Ctrl+,)"
+          onclick={() => { showSettingsModal = true; }}
+          type="button"
+        >
+          <SettingsIcon size={14} />
+        </button>
       </div>
     </header>
 
     <!-- Editor Container -->
     <main class="editor-container">
+      <FindReplace
+        view={editorInstance?.view || null}
+        isOpen={showFindReplace}
+        onClose={() => { showFindReplace = false; }}
+      />
       <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
     </main>
-
-    <!-- Status Bar -->
-    <footer class="status-bar">
-      <div class="status-left">
-        <span>Ln {cursorInfo.line}, Col {cursorInfo.col}</span>
-        <span>{cursorInfo.wordCount} words</span>
-        <span>{cursorInfo.charCount} characters</span>
-      </div>
-      <div class="status-right">
-        <span class="zoom-controls">
-          <button class="zoom-btn" title="Zoom Out (Ctrl+-)" onclick={zoomOut}>-</button>
-          <button class="zoom-text" title="Reset Zoom (Ctrl+0)" onclick={zoomReset}>{fontSize}px</button>
-          <button class="zoom-btn" title="Zoom In (Ctrl+=)" onclick={zoomIn}>+</button>
-        </span>
-        <button class="badge" onclick={toggleLiveMode} type="button">
-          Mode: {editorMode === 'live' ? 'Live Preview' : 'Raw Source'}
-        </button>
-        <span>UTF-8</span>
-        <span>Markdown</span>
-      </div>
-    </footer>
   </div>
+
+  <!-- Preferences / Settings Modal -->
+  <SettingsModal
+    isOpen={showSettingsModal}
+    {settings}
+    onSave={applyAppSettings}
+    onClose={() => { showSettingsModal = false; }}
+  />
 
   <!-- Close Confirmation Modal -->
   {#if showCloseModal && pendingCloseNoteId}
