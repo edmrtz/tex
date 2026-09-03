@@ -6,12 +6,20 @@ export function CreateNewFile(arg1, arg2) {
   return window['go']['main']['App']['CreateNewFile'](arg1, arg2);
 }
 
+export function DeleteFile(arg1) {
+  return window['go']['main']['App']['DeleteFile'](arg1);
+}
+
 export function GetInitialFiles() {
   return window['go']['main']['App']['GetInitialFiles']();
 }
 
 export function GetWorkspaceInfo() {
   return window['go']['main']['App']['GetWorkspaceInfo']();
+}
+
+export function MoveFile(arg1, arg2) {
+  return window['go']['main']['App']['MoveFile'](arg1, arg2);
 }
 
 export function OpenDirectoryDialog() {

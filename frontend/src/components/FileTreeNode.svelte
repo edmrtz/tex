@@ -7,17 +7,25 @@
     item,
     activePath,
     onSelectFile,
-    onFolderContextMenu,
+    onContextMenu,
+    onDragStartNode,
+    onDragEndNode,
+    onDropNode,
     depth = 0,
   }: {
     item: FileTreeItem;
     activePath: string | null;
     onSelectFile: (path: string) => void;
-    onFolderContextMenu?: (e: MouseEvent, folderPath: string) => void;
+    onContextMenu?: (e: MouseEvent, item: FileTreeItem) => void;
+    onDragStartNode?: (e: DragEvent, item: FileTreeItem) => void;
+    onDragEndNode?: () => void;
+    onDropNode?: (targetDir: string) => void;
     depth?: number;
   } = $props();
 
   let isOpen = $state(false);
+  let isDragOver = $state(false);
+  let isDragging = $state(false);
 
   const isActive = $derived(activePath !== null && activePath === item.path);
 
@@ -31,10 +39,50 @@
   }
 
   function handleContextMenu(e: MouseEvent) {
-    if (item.isDir && onFolderContextMenu) {
+    if (onContextMenu) {
       e.preventDefault();
       e.stopPropagation();
-      onFolderContextMenu(e, item.path);
+      onContextMenu(e, item);
+    }
+  }
+
+  function handleDragStart(e: DragEvent) {
+    isDragging = true;
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', item.path);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    onDragStartNode?.(e, item);
+  }
+
+  function handleDragEnd() {
+    isDragging = false;
+    onDragEndNode?.();
+  }
+
+  function handleDragOver(e: DragEvent) {
+    if (item.isDir) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+      isDragOver = true;
+    }
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    if (item.isDir) {
+      isDragOver = false;
+    }
+  }
+
+  function handleDrop(e: DragEvent) {
+    if (item.isDir) {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragOver = false;
+      onDropNode?.(item.path);
     }
   }
 </script>
@@ -45,8 +93,16 @@
     class="tree-row"
     class:active={isActive}
     class:is-dir={item.isDir}
+    class:drag-over={isDragOver}
+    class:is-dragging={isDragging}
+    draggable={true}
     onclick={handleClick}
     oncontextmenu={handleContextMenu}
+    ondragstart={handleDragStart}
+    ondragend={handleDragEnd}
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
+    ondrop={handleDrop}
     title={item.path}
   >
     {#if item.isDir}
@@ -80,7 +136,10 @@
           item={child}
           {activePath}
           {onSelectFile}
-          {onFolderContextMenu}
+          {onContextMenu}
+          {onDragStartNode}
+          {onDragEndNode}
+          {onDropNode}
           depth={depth + 1}
         />
       {/each}
@@ -119,6 +178,17 @@
     background-color: var(--accent-subtle);
     color: var(--accent);
     font-weight: 600;
+  }
+
+  .tree-row.drag-over {
+    background-color: var(--bg-hover) !important;
+    outline: 1px dashed var(--accent) !important;
+    outline-offset: -1px;
+    color: var(--accent) !important;
+  }
+
+  .tree-row.is-dragging {
+    opacity: 0.35;
   }
 
   .tree-chevron {

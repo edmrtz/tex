@@ -175,6 +175,66 @@ func (a *App) CreateNewFile(targetDir string, fileName string) (*FileInfo, error
 	return a.ReadFile(fullPath)
 }
 
+// DeleteFile deletes a file or directory at targetPath
+func (a *App) DeleteFile(targetPath string) error {
+	clean := filepath.Clean(targetPath)
+	abs, err := filepath.Abs(clean)
+	if err != nil {
+		abs = clean
+	}
+	a.UnwatchFile(abs)
+	return os.RemoveAll(abs)
+}
+
+// MoveFile moves a file or folder from sourcePath to targetDir
+func (a *App) MoveFile(sourcePath string, targetDir string) (*FileInfo, error) {
+	srcClean := filepath.Clean(sourcePath)
+	srcAbs, err := filepath.Abs(srcClean)
+	if err != nil {
+		srcAbs = srcClean
+	}
+
+	tgtClean := filepath.Clean(targetDir)
+	tgtAbs, err := filepath.Abs(tgtClean)
+	if err != nil {
+		tgtAbs = tgtClean
+	}
+
+	fi, err := os.Stat(tgtAbs)
+	if err != nil || !fi.IsDir() {
+		return nil, fmt.Errorf("target is not a directory: %s", tgtAbs)
+	}
+
+	baseName := filepath.Base(srcAbs)
+	destPath := filepath.Join(tgtAbs, baseName)
+
+	if srcAbs == destPath {
+		return a.ReadFile(destPath)
+	}
+
+	// Prevent moving directory into itself or child
+	if strings.HasPrefix(tgtAbs, srcAbs+string(filepath.Separator)) {
+		return nil, fmt.Errorf("cannot move folder into its own subfolder")
+	}
+
+	a.UnwatchFile(srcAbs)
+
+	// Try atomic rename
+	if err := os.Rename(srcAbs, destPath); err != nil {
+		// Fallback for cross-device moves
+		input, err := os.ReadFile(srcAbs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read source for move: %w", err)
+		}
+		if err := os.WriteFile(destPath, input, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write destination for move: %w", err)
+		}
+		_ = os.Remove(srcAbs)
+	}
+
+	return a.ReadFile(destPath)
+}
+
 // OpenDirectoryDialog prompts the user to select a workspace folder
 func (a *App) OpenDirectoryDialog() (string, error) {
 	defaultDir := a.currentDir

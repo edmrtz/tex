@@ -142,6 +142,7 @@ jobs:
     steps:
       - name: Submit to Winget Community Repository
         uses: vedantmgoyal2009/winget-releaser@v2
+        continue-on-error: true
         if: env.WINGET_TOKEN != ''
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}

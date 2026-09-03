@@ -22,6 +22,8 @@
     OpenFileDialog,
     SaveFileDialog,
     CreateNewFile,
+    DeleteFile,
+    MoveFile,
   } from '../wailsjs/go/main/App';
   import {
     EventsOn,
@@ -303,6 +305,49 @@
     }
   }
 
+  async function handleDeleteFile(filePath: string) {
+    try {
+      await DeleteFile(filePath);
+      // If open in notes, remove it
+      const remaining = notes.filter((n) => n.path !== filePath);
+      if (remaining.length === 0) {
+        const fresh = createNewNote('Untitled', '');
+        notes = [fresh];
+        switchNote(fresh.id);
+      } else {
+        notes = remaining;
+        if (activeNote?.path === filePath) {
+          switchNote(notes[0].id);
+        }
+      }
+      await handleRefreshFolder();
+    } catch (err) {
+      console.error('Failed to delete file:', err);
+    }
+  }
+
+  async function handleMoveFile(sourcePath: string, targetDir: string) {
+    try {
+      const res = await MoveFile(sourcePath, targetDir);
+      if (res) {
+        // If moved file was open in notes, update its path and title
+        const existing = notes.find((n) => n.path === sourcePath);
+        if (existing) {
+          existing.path = res.path;
+          existing.title = res.name;
+          existing.modTime = res.modTime;
+          notes = [...notes];
+          if (activeNoteId === existing.id) {
+            WindowSetTitle(`Tex - ${res.name}`);
+          }
+        }
+        await handleRefreshFolder();
+      }
+    } catch (err) {
+      console.error('Failed to move file:', err);
+    }
+  }
+
   function toggleLiveMode() {
     editorMode = editorMode === 'live' ? 'source' : 'live';
     if (editorInstance) {
@@ -533,6 +578,8 @@
       onToggleSidebar={toggleSidebar}
       onOpenSettings={() => { showSettingsModal = true; }}
       onCreateFileInFolder={handleCreateFileInFolder}
+      onDeleteFile={handleDeleteFile}
+      onMoveFile={handleMoveFile}
     />
 
     <!-- Main Workspace -->

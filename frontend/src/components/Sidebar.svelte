@@ -10,6 +10,7 @@
     PanelLeftClose,
     RefreshCw,
     Settings as SettingsIcon,
+    Trash2,
   } from '@lucide/svelte';
   import FileTreeNode from './FileTreeNode.svelte';
 
@@ -26,6 +27,8 @@
     onToggleSidebar,
     onOpenSettings,
     onCreateFileInFolder,
+    onDeleteFile,
+    onMoveFile,
   }: {
     isOpen: boolean;
     activePath: string | null;
@@ -39,21 +42,44 @@
     onToggleSidebar: () => void;
     onOpenSettings?: () => void;
     onCreateFileInFolder?: (folderPath: string, fileName: string) => void;
+    onDeleteFile?: (filePath: string) => void;
+    onMoveFile?: (sourcePath: string, targetDir: string) => void;
   } = $props();
 
   let searchQuery = $state('');
-  let contextMenu = $state<{ x: number; y: number; folderPath: string } | null>(null);
+  let contextMenu = $state<{ x: number; y: number; item: FileTreeItem } | null>(null);
   let showNewFileModal = $state<{ folderPath: string } | null>(null);
+  let showDeleteModal = $state<FileTreeItem | null>(null);
   let newFileName = $state('');
   let newFileInputEl = $state<HTMLInputElement | null>(null);
 
-  function handleFolderContextMenu(e: MouseEvent, folderPath: string) {
+  let draggedItem = $state<FileTreeItem | null>(null);
+  let isRootDragOver = $state(false);
+
+  function handleNodeContextMenu(e: MouseEvent, item: FileTreeItem) {
     e.preventDefault();
     e.stopPropagation();
     contextMenu = {
-      x: Math.min(e.clientX, window.innerWidth - 160),
-      y: Math.min(e.clientY, window.innerHeight - 100),
-      folderPath,
+      x: Math.min(e.clientX, window.innerWidth - 170),
+      y: Math.min(e.clientY, window.innerHeight - 130),
+      item,
+    };
+  }
+
+  function handleWorkspaceHeaderContextMenu(e: MouseEvent) {
+    if (!currentFolder) return;
+    e.preventDefault();
+    e.stopPropagation();
+    contextMenu = {
+      x: Math.min(e.clientX, window.innerWidth - 170),
+      y: Math.min(e.clientY, window.innerHeight - 130),
+      item: {
+        path: currentFolder,
+        name: getFolderDisplayName(currentFolder),
+        isDir: true,
+        modTime: 0,
+        size: 0,
+      },
     };
   }
 
@@ -64,6 +90,17 @@
     setTimeout(() => newFileInputEl?.focus(), 50);
   }
 
+  function promptDelete(item: FileTreeItem) {
+    contextMenu = null;
+    showDeleteModal = item;
+  }
+
+  function confirmDelete() {
+    if (!showDeleteModal) return;
+    onDeleteFile?.(showDeleteModal.path);
+    showDeleteModal = null;
+  }
+
   function submitNewFile(e?: Event) {
     if (e) e.preventDefault();
     if (!showNewFileModal || !newFileName.trim()) return;
@@ -71,6 +108,23 @@
       onCreateFileInFolder(showNewFileModal.folderPath, newFileName.trim());
     }
     showNewFileModal = null;
+  }
+
+  function handleDragStartNode(e: DragEvent, item: FileTreeItem) {
+    draggedItem = item;
+  }
+
+  function handleDragEndNode() {
+    draggedItem = null;
+    isRootDragOver = false;
+  }
+
+  function handleDropNode(targetDir: string) {
+    if (draggedItem && draggedItem.path !== targetDir) {
+      onMoveFile?.(draggedItem.path, targetDir);
+    }
+    draggedItem = null;
+    isRootDragOver = false;
   }
 
   function getFolderDisplayName(path: string): string {
@@ -109,6 +163,7 @@
     if (e.key === 'Escape') {
       contextMenu = null;
       showNewFileModal = null;
+      showDeleteModal = null;
     }
   }}
 />
@@ -118,12 +173,24 @@
     <!-- Header -->
     <div
       class="sidebar-header"
-      oncontextmenu={(e) => {
-        if (currentFolder) {
-          handleFolderContextMenu(e, currentFolder);
+      class:drag-over={isRootDragOver}
+      oncontextmenu={handleWorkspaceHeaderContextMenu}
+      ondragover={(e) => {
+        if (draggedItem && currentFolder) {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+          isRootDragOver = true;
         }
       }}
-      title="Right-click for options"
+      ondragleave={() => { isRootDragOver = false; }}
+      ondrop={(e) => {
+        e.preventDefault();
+        isRootDragOver = false;
+        if (currentFolder) {
+          handleDropNode(currentFolder);
+        }
+      }}
+      title="Right-click for options (or drag files here to move to root)"
     >
       <div class="workspace-meta">
         <span class="tui-bracket">[</span>
@@ -201,7 +268,7 @@
       </div>
     </div>
 
-    <!-- Scrollable File Tree (No unnecessary headings or inbox) -->
+    <!-- Scrollable File Tree -->
     <div class="sidebar-content">
       {#if !currentFolder}
         <div class="folder-prompt">
@@ -215,13 +282,34 @@
           {searchQuery ? 'No matching markdown files' : 'No markdown files found'}
         </div>
       {:else}
-        <div class="tree-list">
+        <div
+          class="tree-list"
+          class:drag-over={isRootDragOver}
+          ondragover={(e) => {
+            if (draggedItem && currentFolder) {
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+              isRootDragOver = true;
+            }
+          }}
+          ondragleave={() => { isRootDragOver = false; }}
+          ondrop={(e) => {
+            e.preventDefault();
+            isRootDragOver = false;
+            if (currentFolder) {
+              handleDropNode(currentFolder);
+            }
+          }}
+        >
           {#each filteredTree as item (item.path)}
             <FileTreeNode
               {item}
               {activePath}
               {onSelectFile}
-              onFolderContextMenu={handleFolderContextMenu}
+              onContextMenu={handleNodeContextMenu}
+              onDragStartNode={handleDragStartNode}
+              onDragEndNode={handleDragEndNode}
+              onDropNode={handleDropNode}
             />
           {/each}
         </div>
@@ -247,17 +335,36 @@
   >
     <div class="context-menu-header">
       <span class="tui-bracket">[</span>
-      <span class="context-menu-title">{getFolderDisplayName(contextMenu.folderPath)}</span>
+      <span class="context-menu-title">{contextMenu.item.name}</span>
       <span class="tui-bracket">]</span>
     </div>
-    <button
-      class="context-menu-item"
-      onclick={() => openNewFilePrompt(contextMenu!.folderPath)}
-      type="button"
-    >
-      <Plus size={13} />
-      <span>[+ new file]</span>
-    </button>
+    {#if contextMenu.item.isDir}
+      <button
+        class="context-menu-item"
+        onclick={() => openNewFilePrompt(contextMenu!.item.path)}
+        type="button"
+      >
+        <Plus size={13} />
+        <span>[+ new file]</span>
+      </button>
+      <button
+        class="context-menu-item danger"
+        onclick={() => promptDelete(contextMenu!.item)}
+        type="button"
+      >
+        <Trash2 size={13} />
+        <span>[- delete folder]</span>
+      </button>
+    {:else}
+      <button
+        class="context-menu-item danger"
+        onclick={() => promptDelete(contextMenu!.item)}
+        type="button"
+      >
+        <Trash2 size={13} />
+        <span>[- delete file]</span>
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -309,6 +416,50 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+{/if}
+
+{#if showDeleteModal}
+  <div
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    onclick={() => { showDeleteModal = null; }}
+    onkeydown={(e) => { if (e.key === 'Escape') showDeleteModal = null; }}
+  >
+    <div
+      class="modal-card"
+      role="document"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div class="modal-title danger-title">
+        <span class="tui-bracket">[</span>
+        <span>delete {showDeleteModal.isDir ? 'folder' : 'file'}</span>
+        <span class="tui-bracket">]</span>
+      </div>
+      <div class="modal-message">
+        Are you sure you want to delete <strong class="file-highlight">"{showDeleteModal.name}"</strong>?
+        <div class="warning-text">This will remove it from disk.</div>
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick={() => { showDeleteModal = null; }}
+        >
+          cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          onclick={confirmDelete}
+        >
+          delete
+        </button>
+      </div>
     </div>
   </div>
 {/if}
@@ -672,5 +823,58 @@
   .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .btn-danger {
+    background-color: #e06c75;
+    color: #09090b;
+    border-color: #e06c75;
+  }
+
+  .btn-danger:hover {
+    background-color: #be5046;
+    border-color: #be5046;
+  }
+
+  .danger-title {
+    color: #e06c75 !important;
+  }
+
+  .modal-message {
+    font-size: 11.5px;
+    color: var(--text-main);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .file-highlight {
+    color: var(--text-bright);
+  }
+
+  .warning-text {
+    color: var(--text-muted);
+    font-size: 10.5px;
+    margin-top: 4px;
+  }
+
+  .context-menu-item.danger {
+    color: #e06c75;
+  }
+
+  .context-menu-item.danger:hover {
+    background-color: rgba(224, 108, 117, 0.15);
+    color: #f38ba8;
+  }
+
+  .sidebar-header.drag-over {
+    background-color: var(--bg-hover) !important;
+    outline: 1px dashed var(--accent);
+    outline-offset: -2px;
+  }
+
+  .tree-list.drag-over {
+    outline: 1px dashed var(--accent);
+    outline-offset: -2px;
+    background-color: rgba(255, 255, 255, 0.02);
   }
 </style>

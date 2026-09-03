@@ -4,9 +4,13 @@ import {main} from '../models';
 
 export function CreateNewFile(arg1:string,arg2:string):Promise<main.FileInfo>;
 
+export function DeleteFile(arg1:string):Promise<void>;
+
 export function GetInitialFiles():Promise<Array<string>>;
 
 export function GetWorkspaceInfo():Promise<main.WorkspaceInfo>;
+
+export function MoveFile(arg1:string,arg2:string):Promise<main.FileInfo>;
 
 export function OpenDirectoryDialog():Promise<string>;
 
