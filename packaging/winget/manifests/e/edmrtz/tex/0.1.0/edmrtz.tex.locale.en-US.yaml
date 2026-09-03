@@ -1,0 +1,22 @@
+PackageIdentifier: edmrtz.tex
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: edmrtz
+PublisherUrl: https://github.com/edmrtz
+PackageName: Tex
+PackageUrl: https://github.com/edmrtz/tex
+License: MIT
+LicenseUrl: https://github.com/edmrtz/tex/blob/main/LICENSE
+Copyright: Copyright (c) 2026 edmrtz
+ShortDescription: Minimalist distraction-free markdown notepad with Obsidian-style live rendering
+Description: Tex is an ultra-lightweight, distraction-free markdown notepad with live preview rendering, KaTeX math equations, Mermaid diagrams, and seamless CLI capabilities.
+Moniker: tex
+Tags:
+  - markdown
+  - editor
+  - notepad
+  - notes
+  - katex
+  - mermaid
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

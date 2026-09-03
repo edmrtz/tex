@@ -1,0 +1,21 @@
+# Maintainer: edmrtz <github.com/edmrtz>
+pkgname=tex-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Minimalist distraction-free markdown notepad with Obsidian-style live rendering"
+arch=('x86_64')
+url="https://github.com/edmrtz/tex"
+license=('MIT')
+depends=('gtk3' 'webkit2gtk-4.1')
+provides=('tex')
+conflicts=('tex')
+source=("https://github.com/edmrtz/tex/releases/download/v${pkgver}/tex-linux-amd64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  cd "${srcdir}"
+  install -Dm755 tex "${pkgdir}/usr/bin/tex"
+  install -Dm644 tex.desktop "${pkgdir}/usr/share/applications/tex.desktop"
+  install -Dm644 appicon.png "${pkgdir}/usr/share/icons/hicolor/1024x1024/apps/tex.png"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

@@ -1,0 +1,189 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build and Package Linux
+        run: make package-linux
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tex-linux-amd64
+          path: build/bin/tex-linux-amd64.tar.gz
+
+  build-windows:
+    name: Build Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Windows Executable and NSIS Installer
+        run: wails build -platform windows/amd64 -nsis
+
+      - name: Package Windows Artifacts
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\bin\tex.exe -DestinationPath build\bin\tex-windows-amd64.zip
+          $installer = Get-ChildItem -Path build\bin\ -Filter "*installer.exe" | Select-Object -First 1
+          if ($installer) {
+            Copy-Item $installer.FullName -Destination "build\bin\tex-windows-amd64-installer.exe"
+          }
+
+      - name: Upload Windows Standalone
+        uses: actions/upload-artifact@v4
+        with:
+          name: tex-windows-amd64-zip
+          path: build/bin/tex-windows-amd64.zip
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: tex-windows-amd64-installer
+          path: build/bin/tex-windows-amd64-installer.exe
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate Checksums
+        working-directory: release-assets
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  publish-winget:
+    name: Submit to Windows Package Manager (Winget)
+    needs: [publish-release]
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Submit to Winget Community Repository
+        uses: vedantmgoyal2009/winget-releaser@v2
+        if: env.WINGET_TOKEN != ''
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        with:
+          identifier: edmrtz.tex
+          installers-regex: '.*-installer\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  publish-aur:
+    name: Publish to Arch User Repository (AUR)
+    needs: [publish-release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update and Publish AUR Package
+        if: env.AUR_KEY != ''
+        env:
+          AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "Preparing AUR update for version ${TAG}..."
+          mkdir -p ~/.ssh
+          echo "${AUR_KEY}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519,rsa aur.archlinux.org >> ~/.ssh/known_hosts
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git clone ssh://aur@aur.archlinux.org/tex-bin.git aur-repo || true
+          if [ -d aur-repo ]; then
+            cd aur-repo
+            cp ../packaging/aur/tex-bin/PKGBUILD .
+            sed -i "s/^pkgver=.*/pkgver=${TAG}/" PKGBUILD
+            sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+            curl -sL "https://github.com/edmrtz/tex/releases/download/v${TAG}/SHA256SUMS.txt" -o sums.txt
+            SHA=$(grep 'tex-linux-amd64.tar.gz' sums.txt | awk '{print $1}')
+            sed -i "s/^sha256sums=.*/sha256sums=('${SHA}')/" PKGBUILD
+            # Generate .SRCINFO
+            docker run --rm -v "$(pwd):/pkg" -w /pkg archlinux:latest bash -c "pacman -Sy --noconfirm sudo binutils && useradd -m build && chown -R build:build /pkg && su build -c 'makepkg --printsrcinfo' > .SRCINFO"
+            git add PKGBUILD .SRCINFO
+            git commit -m "Update to v${TAG}"
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git push origin master
+          fi

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Tex
+GenericName=Markdown Notepad
+Comment=Minimalist distraction-free markdown notepad with live rendering
+Exec=tex %F
+Icon=tex
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;text/plain;
+Keywords=markdown;note;editor;katex;mermaid;
+StartupWMClass=tex

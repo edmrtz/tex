@@ -1,0 +1,21 @@
+PackageIdentifier: edmrtz.tex
+PackageVersion: 0.1.0
+Platform:
+  - Windows.Desktop
+MinimumOSVersion: 10.0.0.0
+InstallerType: nullsoft
+InstallModes:
+  - interactive
+  - silent
+Commands:
+  - tex
+FileExtensions:
+  - md
+  - markdown
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/edmrtz/tex/releases/download/v0.1.0/tex-windows-amd64-installer.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerType: nullsoft
+ManifestType: installer
+ManifestVersion: 1.6.0

@@ -1,0 +1,15 @@
+pkgbase = tex-bin
+	pkgdesc = Minimalist distraction-free markdown notepad with Obsidian-style live rendering
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/edmrtz/tex
+	arch = x86_64
+	license = MIT
+	depends = gtk3
+	depends = webkit2gtk-4.1
+	provides = tex
+	conflicts = tex
+	source = https://github.com/edmrtz/tex/releases/download/v0.1.0/tex-linux-amd64.tar.gz
+	sha256sums = SKIP
+
+pkgname = tex-bin

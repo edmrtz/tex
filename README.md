@@ -42,7 +42,32 @@ Built with **Go (Wails v2)**, **Svelte 5**, and **CodeMirror 6**.
 
 ---
 
-## Building & Installing
+## Installation
+
+### Arch Linux (AUR)
+Install using your preferred AUR helper:
+```bash
+# Binary release (recommended)
+yay -S tex-bin
+# or
+paru -S tex-bin
+```
+
+### Windows (Winget)
+Install via the Windows Package Manager:
+```powershell
+winget install edmrtz.tex
+```
+Or download the standalone NSIS setup installer from [GitHub Releases](https://github.com/edmrtz/tex/releases).
+
+### Manual Download (Linux & Windows)
+Pre-built archives and installers are available on the [GitHub Releases](https://github.com/edmrtz/tex/releases) page:
+- **Linux (x86_64)**: `tex-linux-amd64.tar.gz`
+- **Windows (x86_64)**: `tex-windows-amd64-installer.exe` or portable `tex-windows-amd64.zip`
+
+---
+
+## Building from Source
 
 ### Requirements
 - **Go 1.22+**
@@ -61,16 +86,18 @@ make build-linux
 # Binary is output to build/bin/tex
 ```
 
-### Install on Linux (`~/.local/bin`)
+### Install with Desktop Launcher on Linux (`~/.local`)
 ```bash
-make install-linux
+make install-desktop
 ```
 
-### Build for Windows (Cross-compile or Native)
+### Build for Windows
 ```bash
 make build-windows
 # Binary is output to build/bin/tex.exe
 ```
+
+For maintainers and packaging details, see [RELEASE_GUIDE.md](file:///home/mrtz/Projects/tex/RELEASE_GUIDE.md).
 
 ---
 
