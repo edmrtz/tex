@@ -346,7 +346,7 @@
   });
 </script>
 
-<div id="app">
+<div class="tex-app">
   <!-- Tab Bar -->
   <header class="tab-bar-container">
     <div class="tab-list">

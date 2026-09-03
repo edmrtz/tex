@@ -65,6 +65,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 255}, // Dark zinc background
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
+		EnableDefaultContextMenu: true,
 		Bind: []interface{}{
 			app,
 		},

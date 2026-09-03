@@ -1,12 +1,16 @@
 import {
-  ViewPlugin,
   Decoration,
   EditorView,
   WidgetType,
   type DecorationSet,
-  type ViewUpdate,
 } from '@codemirror/view';
-import { RangeSetBuilder, Range } from '@codemirror/state';
+import {
+  StateField,
+  RangeSet,
+  type Range,
+  type EditorState,
+  type Extension,
+} from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { InlineMathWidget, BlockMathWidget } from './mathWidget';
 import { MermaidWidget } from './mermaidWidget';
@@ -41,12 +45,23 @@ class TaskCheckboxWidget extends WidgetType {
   }
 }
 
-// Check if cursor or selection overlaps [from, to] (inclusive of cursor at boundary)
-function cursorOverlaps(view: EditorView, from: number, to: number): boolean {
-  for (const range of view.state.selection.ranges) {
-    // If range touches anywhere from - 1 to to + 1
+class HorizontalRuleWidget extends WidgetType {
+  toDOM() {
+    const hr = document.createElement('hr');
+    hr.className = 'cm-hr';
+    return hr;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
+// Check if cursor or selection is strictly inside [from, to] (inclusive of boundaries)
+function cursorInside(state: EditorState, from: number, to: number): boolean {
+  for (const range of state.selection.ranges) {
     if (range.empty) {
-      if (range.head >= from - 1 && range.head <= to + 1) return true;
+      if (range.head >= from && range.head <= to) return true;
     } else {
       if (range.to >= from && range.from <= to) return true;
     }
@@ -55,260 +70,250 @@ function cursorOverlaps(view: EditorView, from: number, to: number): boolean {
 }
 
 // Check if cursor is on the same line as [from, to]
-function cursorOnSameLine(view: EditorView, lineFrom: number, lineTo: number): boolean {
-  for (const range of view.state.selection.ranges) {
+function cursorOnSameLine(state: EditorState, lineFrom: number, lineTo: number): boolean {
+  for (const range of state.selection.ranges) {
     if (range.head >= lineFrom && range.head <= lineTo) return true;
   }
   return false;
 }
 
-export function createLivePreviewPlugin() {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
+function computeDecorations(state: EditorState): DecorationSet {
+  const docText = state.doc.toString();
+  const ranges: Range<Decoration>[] = [];
+  const occupiedReplacements: { from: number; to: number }[] = [];
 
-      constructor(view: EditorView) {
-        this.decorations = this.computeDecorations(view);
+  function isOccupied(from: number, to: number): boolean {
+    return occupiedReplacements.some(
+      (r) => Math.max(from, r.from) < Math.min(to, r.to)
+    );
+  }
+
+  function addReplacement(from: number, to: number, deco: Decoration) {
+    if (!isOccupied(from, to)) {
+      ranges.push(deco.range(from, to));
+      occupiedReplacements.push({ from, to });
+      return true;
+    }
+    return false;
+  }
+
+  // 1. Mermaid Code Blocks: ```mermaid ... ```
+  const mermaidRegex = /```mermaid[^\n]*\r?\n([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+  while ((match = mermaidRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      const mermaidCode = match[1];
+      addReplacement(
+        matchFrom,
+        matchTo,
+        Decoration.replace({
+          widget: new MermaidWidget(mermaidCode),
+          block: true,
+        })
+      );
+    }
+  }
+
+  // 2. Block Math: $$ ... $$
+  const blockMathRegex = /(?<!\\)\$\$([\s\S]+?)\$\$/g;
+  while ((match = blockMathRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    if (isOccupied(matchFrom, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      const mathContent = match[1];
+      addReplacement(
+        matchFrom,
+        matchTo,
+        Decoration.replace({
+          widget: new BlockMathWidget(mathContent),
+          block: true,
+        })
+      );
+    }
+  }
+
+  // 3. Process Lezer Markdown AST
+  syntaxTree(state).iterate({
+    from: 0,
+    to: state.doc.length,
+    enter: (node) => {
+      const nodeName = node.name;
+      const nodeFrom = node.from;
+      const nodeTo = node.to;
+
+      // If this AST node is within a block that was already replaced (like Mermaid or Block Math), skip it
+      if (isOccupied(nodeFrom, nodeTo)) return;
+
+      // Header styling (ATXHeading1 to ATXHeading6)
+      const headingMatch = nodeName.match(/^ATXHeading(\d)$/);
+      if (headingMatch) {
+        const level = headingMatch[1];
+        const line = state.doc.lineAt(nodeFrom);
+        const hasCursor = cursorOnSameLine(state, line.from, line.to);
+
+        // Add styling to entire heading line
+        ranges.push(
+          Decoration.line({ class: `cm-heading cm-heading-${level}` }).range(line.from, line.from)
+        );
+
+        // Hide the '#' marks when cursor is elsewhere
+        if (!hasCursor) {
+          const lineText = state.doc.sliceString(nodeFrom, nodeTo);
+          const hashPrefix = lineText.match(/^#{1,6}\s*/);
+          if (hashPrefix) {
+            addReplacement(
+              nodeFrom,
+              nodeFrom + hashPrefix[0].length,
+              Decoration.replace({})
+            );
+          }
+        }
       }
 
-      update(update: ViewUpdate) {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = this.computeDecorations(update.view);
+      // Strong / Bold (**text**)
+      if (nodeName === 'StrongEmphasis') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          const raw = state.doc.sliceString(nodeFrom, nodeTo);
+          if (raw.startsWith('**') && raw.endsWith('**') && raw.length >= 4) {
+            addReplacement(nodeFrom, nodeFrom + 2, Decoration.replace({}));
+            ranges.push(Decoration.mark({ class: 'cm-bold' }).range(nodeFrom + 2, nodeTo - 2));
+            addReplacement(nodeTo - 2, nodeTo, Decoration.replace({}));
+          }
+        } else {
+          ranges.push(Decoration.mark({ class: 'cm-bold' }).range(nodeFrom, nodeTo));
         }
       }
 
-      computeDecorations(view: EditorView): DecorationSet {
-        const builder = new RangeSetBuilder<Decoration>();
-        const { state } = view;
-        const docText = state.doc.toString();
-
-        // 1. Process Lezer Markdown AST in the visible viewport
-        for (const { from, to } of view.visibleRanges) {
-          syntaxTree(state).iterate({
-            from,
-            to,
-            enter: (node) => {
-              const nodeName = node.name;
-              const nodeFrom = node.from;
-              const nodeTo = node.to;
-
-              // Header styling (ATXHeading1 to ATXHeading6)
-              const headingMatch = nodeName.match(/^ATXHeading(\d)$/);
-              if (headingMatch) {
-                const level = headingMatch[1];
-                const line = state.doc.lineAt(nodeFrom);
-                const hasCursor = cursorOnSameLine(view, line.from, line.to);
-
-                // Add styling to entire heading line
-                builder.add(
-                  line.from,
-                  line.from,
-                  Decoration.line({ class: `cm-heading cm-heading-${level}` })
-                );
-
-                // Hide the '#' marks when cursor is elsewhere
-                if (!hasCursor) {
-                  const lineText = state.doc.sliceString(nodeFrom, nodeTo);
-                  const hashPrefix = lineText.match(/^#{1,6}\s*/);
-                  if (hashPrefix) {
-                    builder.add(
-                      nodeFrom,
-                      nodeFrom + hashPrefix[0].length,
-                      Decoration.replace({})
-                    );
-                  }
-                }
-              }
-
-              // Strong / Bold (**text**)
-              if (nodeName === 'StrongEmphasis') {
-                const hasCursor = cursorOverlaps(view, nodeFrom, nodeTo);
-                if (!hasCursor) {
-                  const raw = state.doc.sliceString(nodeFrom, nodeTo);
-                  if (raw.startsWith('**') && raw.endsWith('**') && raw.length >= 4) {
-                    builder.add(nodeFrom, nodeFrom + 2, Decoration.replace({}));
-                    builder.add(nodeFrom + 2, nodeTo - 2, Decoration.mark({ class: 'cm-bold' }));
-                    builder.add(nodeTo - 2, nodeTo, Decoration.replace({}));
-                  }
-                } else {
-                  builder.add(nodeFrom, nodeTo, Decoration.mark({ class: 'cm-bold' }));
-                }
-              }
-
-              // Emphasis / Italic (*text* or _text_)
-              if (nodeName === 'Emphasis') {
-                const hasCursor = cursorOverlaps(view, nodeFrom, nodeTo);
-                if (!hasCursor) {
-                  const raw = state.doc.sliceString(nodeFrom, nodeTo);
-                  const marker = raw[0];
-                  if ((marker === '*' || marker === '_') && raw.endsWith(marker) && raw.length >= 2) {
-                    builder.add(nodeFrom, nodeFrom + 1, Decoration.replace({}));
-                    builder.add(nodeFrom + 1, nodeTo - 1, Decoration.mark({ class: 'cm-italic' }));
-                    builder.add(nodeTo - 1, nodeTo, Decoration.replace({}));
-                  }
-                } else {
-                  builder.add(nodeFrom, nodeTo, Decoration.mark({ class: 'cm-italic' }));
-                }
-              }
-
-              // Strikethrough (~~text~~)
-              if (nodeName === 'Strikethrough') {
-                const hasCursor = cursorOverlaps(view, nodeFrom, nodeTo);
-                if (!hasCursor) {
-                  const raw = state.doc.sliceString(nodeFrom, nodeTo);
-                  if (raw.startsWith('~~') && raw.endsWith('~~') && raw.length >= 4) {
-                    builder.add(nodeFrom, nodeFrom + 2, Decoration.replace({}));
-                    builder.add(nodeFrom + 2, nodeTo - 2, Decoration.mark({ class: 'cm-strikethrough' }));
-                    builder.add(nodeTo - 2, nodeTo, Decoration.replace({}));
-                  }
-                } else {
-                  builder.add(nodeFrom, nodeTo, Decoration.mark({ class: 'cm-strikethrough' }));
-                }
-              }
-
-              // Blockquote line styling
-              if (nodeName === 'Blockquote') {
-                const line = state.doc.lineAt(nodeFrom);
-                builder.add(line.from, line.from, Decoration.line({ class: 'cm-blockquote-line' }));
-              }
-
-              // Task List Checkboxes
-              if (nodeName === 'Task') {
-                const text = state.doc.sliceString(nodeFrom, Math.min(nodeFrom + 4, nodeTo));
-                const match = text.match(/^\[([ xX])\]/);
-                if (match) {
-                  const isChecked = match[1].toLowerCase() === 'x';
-                  const hasCursor = cursorOverlaps(view, nodeFrom, nodeFrom + 3);
-                  if (!hasCursor) {
-                    // Replace [ ] with interactive widget
-                    builder.add(
-                      nodeFrom,
-                      nodeFrom + 3,
-                      Decoration.replace({
-                        widget: new TaskCheckboxWidget(isChecked, nodeFrom + 1),
-                      })
-                    );
-                  }
-                }
-              }
-
-              // Inline Code (`code`)
-              if (nodeName === 'InlineCode') {
-                const hasCursor = cursorOverlaps(view, nodeFrom, nodeTo);
-                if (!hasCursor) {
-                  const raw = state.doc.sliceString(nodeFrom, nodeTo);
-                  if (raw.startsWith('`') && raw.endsWith('`') && raw.length >= 2) {
-                    builder.add(nodeFrom, nodeFrom + 1, Decoration.replace({}));
-                    builder.add(nodeFrom + 1, nodeTo - 1, Decoration.mark({ class: 'cm-inline-code' }));
-                    builder.add(nodeTo - 1, nodeTo, Decoration.replace({}));
-                  }
-                } else {
-                  builder.add(nodeFrom, nodeTo, Decoration.mark({ class: 'cm-inline-code' }));
-                }
-              }
-
-              // Horizontal Rule (---)
-              if (nodeName === 'HorizontalRule') {
-                const hasCursor = cursorOverlaps(view, nodeFrom, nodeTo);
-                if (!hasCursor) {
-                  builder.add(
-                    nodeFrom,
-                    nodeTo,
-                    Decoration.replace({
-                      widget: new (class extends WidgetType {
-                        toDOM() {
-                          const hr = document.createElement('hr');
-                          hr.className = 'cm-hr';
-                          return hr;
-                        }
-                      })(),
-                    })
-                  );
-                }
-              }
-            },
-          });
+      // Emphasis / Italic (*text* or _text_)
+      if (nodeName === 'Emphasis') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          const raw = state.doc.sliceString(nodeFrom, nodeTo);
+          const marker = raw[0];
+          if ((marker === '*' || marker === '_') && raw.endsWith(marker) && raw.length >= 2) {
+            addReplacement(nodeFrom, nodeFrom + 1, Decoration.replace({}));
+            ranges.push(Decoration.mark({ class: 'cm-italic' }).range(nodeFrom + 1, nodeTo - 1));
+            addReplacement(nodeTo - 1, nodeTo, Decoration.replace({}));
+          }
+        } else {
+          ranges.push(Decoration.mark({ class: 'cm-italic' }).range(nodeFrom, nodeTo));
         }
+      }
 
-        // 2. Math ($inline$ and $$block$$) and Mermaid fenced code blocks
-        // We scan regex matches across the doc text in visible range
-        const viewFrom = view.visibleRanges[0]?.from ?? 0;
-        const viewTo = view.visibleRanges[view.visibleRanges.length - 1]?.to ?? docText.length;
-        const extraDecorations: Range<Decoration>[] = [];
+      // Strikethrough (~~text~~)
+      if (nodeName === 'Strikethrough') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          const raw = state.doc.sliceString(nodeFrom, nodeTo);
+          if (raw.startsWith('~~') && raw.endsWith('~~') && raw.length >= 4) {
+            addReplacement(nodeFrom, nodeFrom + 2, Decoration.replace({}));
+            ranges.push(Decoration.mark({ class: 'cm-strikethrough' }).range(nodeFrom + 2, nodeTo - 2));
+            addReplacement(nodeTo - 2, nodeTo, Decoration.replace({}));
+          }
+        } else {
+          ranges.push(Decoration.mark({ class: 'cm-strikethrough' }).range(nodeFrom, nodeTo));
+        }
+      }
 
-        // Block Math: $$ ... $$
-        const blockMathRegex = /\$\$\n?([\s\S]*?)\n?\$\$/g;
-        let match: RegExpExecArray | null;
-        while ((match = blockMathRegex.exec(docText)) !== null) {
-          const matchFrom = match.index;
-          const matchTo = match.index + match[0].length;
-          if (matchTo < viewFrom || matchFrom > viewTo) continue;
+      // Blockquote line styling
+      if (nodeName === 'Blockquote') {
+        const line = state.doc.lineAt(nodeFrom);
+        ranges.push(Decoration.line({ class: 'cm-blockquote-line' }).range(line.from, line.from));
+      }
 
-          const hasCursor = cursorOverlaps(view, matchFrom, matchTo);
+      // Task List Checkboxes
+      if (nodeName === 'Task') {
+        const text = state.doc.sliceString(nodeFrom, Math.min(nodeFrom + 4, nodeTo));
+        const match = text.match(/^\[([ xX])\]/);
+        if (match) {
+          const isChecked = match[1].toLowerCase() === 'x';
+          const hasCursor = cursorInside(state, nodeFrom, nodeFrom + 3);
           if (!hasCursor) {
-            const mathContent = match[1];
-            extraDecorations.push(
+            addReplacement(
+              nodeFrom,
+              nodeFrom + 3,
               Decoration.replace({
-                widget: new BlockMathWidget(mathContent),
-                block: true,
-              }).range(matchFrom, matchTo)
+                widget: new TaskCheckboxWidget(isChecked, nodeFrom + 1),
+              })
             );
           }
         }
+      }
 
-        // Inline Math: $...$ (not preceded or followed by $)
-        const inlineMathRegex = /(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g;
-        while ((match = inlineMathRegex.exec(docText)) !== null) {
-          const matchFrom = match.index;
-          const matchTo = match.index + match[0].length;
-          if (matchTo < viewFrom || matchFrom > viewTo) continue;
-
-          // Skip if inside block math
-          const hasCursor = cursorOverlaps(view, matchFrom, matchTo);
-          if (!hasCursor) {
-            const mathContent = match[1];
-            extraDecorations.push(
-              Decoration.replace({
-                widget: new InlineMathWidget(mathContent),
-              }).range(matchFrom, matchTo)
-            );
+      // Inline Code (`code`)
+      if (nodeName === 'InlineCode') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          const raw = state.doc.sliceString(nodeFrom, nodeTo);
+          if (raw.startsWith('`') && raw.endsWith('`') && raw.length >= 2) {
+            addReplacement(nodeFrom, nodeFrom + 1, Decoration.replace({}));
+            ranges.push(Decoration.mark({ class: 'cm-inline-code' }).range(nodeFrom + 1, nodeTo - 1));
+            addReplacement(nodeTo - 1, nodeTo, Decoration.replace({}));
           }
+        } else {
+          ranges.push(Decoration.mark({ class: 'cm-inline-code' }).range(nodeFrom, nodeTo));
         }
+      }
 
-        // Mermaid Code Blocks: ```mermaid ... ```
-        const mermaidRegex = /```mermaid\r?\n([\s\S]*?)```/g;
-        while ((match = mermaidRegex.exec(docText)) !== null) {
-          const matchFrom = match.index;
-          const matchTo = match.index + match[0].length;
-          if (matchTo < viewFrom || matchFrom > viewTo) continue;
-
-          const hasCursor = cursorOverlaps(view, matchFrom, matchTo);
-          if (!hasCursor) {
-            const mermaidCode = match[1];
-            extraDecorations.push(
-              Decoration.replace({
-                widget: new MermaidWidget(mermaidCode),
-                block: true,
-              }).range(matchFrom, matchTo)
-            );
-          }
+      // Horizontal Rule (---)
+      if (nodeName === 'HorizontalRule') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          addReplacement(
+            nodeFrom,
+            nodeTo,
+            Decoration.replace({
+              widget: new HorizontalRuleWidget(),
+            })
+          );
         }
-
-        // Sort and add extra decorations safely
-        extraDecorations.sort((a, b) => a.from - b.from);
-        for (const deco of extraDecorations) {
-          try {
-            builder.add(deco.from, deco.to, deco.value);
-          } catch (e) {
-            // Overlap handling fallback
-          }
-        }
-
-        return builder.finish();
       }
     },
-    {
-      decorations: (v) => v.decorations,
+  });
+
+  // 4. Inline Math: $math$ (not preceded or followed by $, not inside code or existing replacements)
+  const inlineMathRegex = /(?<!\\|\$)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\$)/g;
+  while ((match = inlineMathRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    if (isOccupied(matchFrom, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      const mathContent = match[1];
+      addReplacement(
+        matchFrom,
+        matchTo,
+        Decoration.replace({
+          widget: new InlineMathWidget(mathContent),
+        })
+      );
     }
-  );
+  }
+
+  return RangeSet.of(ranges, true);
+}
+
+export const livePreviewField = StateField.define<DecorationSet>({
+  create(state) {
+    return computeDecorations(state);
+  },
+  update(decorations, tr) {
+    if (tr.docChanged || tr.selection) {
+      return computeDecorations(tr.state);
+    }
+    return decorations;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+export function createLivePreviewPlugin(): Extension {
+  return [livePreviewField];
 }
