@@ -97,8 +97,6 @@ make build-windows
 # Binary is output to build/bin/tex.exe
 ```
 
-For maintainers and packaging details, see [RELEASE_GUIDE.md](file:///home/mrtz/Projects/tex/RELEASE_GUIDE.md).
-
 ---
 
 ## License
