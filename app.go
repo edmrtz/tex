@@ -44,6 +44,7 @@ type WorkspaceInfo struct {
 type App struct {
 	ctx          context.Context
 	initialFiles []string
+	currentDir   string
 	watcher      *fsnotify.Watcher
 	watchedFiles map[string]int64
 	watchMu      sync.Mutex
@@ -51,8 +52,10 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp(initialFiles []string) *App {
+	cwd, _ := os.Getwd()
 	return &App{
 		initialFiles: initialFiles,
+		currentDir:   cwd,
 		watchedFiles: make(map[string]int64),
 	}
 }
@@ -103,13 +106,24 @@ func (a *App) OpenFileDialog() (string, error) {
 }
 
 // SaveFileDialog prompts the user with the native Save As dialog
-func (a *App) SaveFileDialog(defaultFilename string) (string, error) {
+func (a *App) SaveFileDialog(defaultDir string, defaultFilename string) (string, error) {
 	if defaultFilename == "" {
 		defaultFilename = "Untitled.md"
 	}
+	if defaultDir == "" {
+		if a.currentDir != "" {
+			defaultDir = a.currentDir
+		} else {
+			cwd, err := os.Getwd()
+			if err == nil {
+				defaultDir = cwd
+			}
+		}
+	}
 	selected, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:           "Save Markdown Document",
-		DefaultFilename: defaultFilename,
+		Title:            "Save Markdown Document",
+		DefaultDirectory: defaultDir,
+		DefaultFilename:  defaultFilename,
 		Filters: []runtime.FileFilter{
 			{
 				DisplayName: "Markdown Files (*.md)",
@@ -127,13 +141,55 @@ func (a *App) SaveFileDialog(defaultFilename string) (string, error) {
 	return selected, nil
 }
 
+// CreateNewFile creates a new empty file inside targetDir and returns its FileInfo
+func (a *App) CreateNewFile(targetDir string, fileName string) (*FileInfo, error) {
+	if targetDir == "" {
+		targetDir = a.currentDir
+		if targetDir == "" {
+			cwd, err := os.Getwd()
+			if err == nil {
+				targetDir = cwd
+			}
+		}
+	}
+	trimmedName := strings.TrimSpace(fileName)
+	if trimmedName == "" {
+		trimmedName = "Untitled.md"
+	}
+	lower := strings.ToLower(trimmedName)
+	if !strings.HasSuffix(lower, ".md") && !strings.HasSuffix(lower, ".markdown") {
+		trimmedName = trimmedName + ".md"
+	}
+
+	fullPath := filepath.Join(targetDir, trimmedName)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		if err := os.WriteFile(fullPath, []byte(""), 0644); err != nil {
+			return nil, fmt.Errorf("failed to create file: %w", err)
+		}
+	}
+
+	return a.ReadFile(fullPath)
+}
+
 // OpenDirectoryDialog prompts the user to select a workspace folder
 func (a *App) OpenDirectoryDialog() (string, error) {
+	defaultDir := a.currentDir
+	if defaultDir == "" {
+		defaultDir, _ = os.Getwd()
+	}
 	selected, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Open Workspace Folder",
+		Title:            "Open Workspace Folder",
+		DefaultDirectory: defaultDir,
 	})
 	if err != nil {
 		return "", err
+	}
+	if selected != "" {
+		a.currentDir = selected
 	}
 	return selected, nil
 }
@@ -235,6 +291,7 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 
 	var tree []FileItem
 	if folder != "" {
+		a.currentDir = folder
 		tree, _ = a.ReadDirectoryTree(folder, 3)
 	}
 
@@ -245,7 +302,7 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 	}, nil
 }
 
-// ReadFile reads and returns the file content and metadata
+// ReadFile reads and returns the file content and metadata (creating it if it does not exist)
 func (a *App) ReadFile(filePath string) (*FileInfo, error) {
 	cleanPath := filepath.Clean(filePath)
 	absPath, err := filepath.Abs(cleanPath)
@@ -254,6 +311,14 @@ func (a *App) ReadFile(filePath string) (*FileInfo, error) {
 	}
 
 	info, err := os.Stat(absPath)
+	if os.IsNotExist(err) {
+		dir := filepath.Dir(absPath)
+		if mkErr := os.MkdirAll(dir, 0755); mkErr == nil {
+			if writeErr := os.WriteFile(absPath, []byte(""), 0644); writeErr == nil {
+				info, err = os.Stat(absPath)
+			}
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("file not found: %w", err)
 	}

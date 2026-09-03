@@ -21,6 +21,7 @@
     SaveFile,
     OpenFileDialog,
     SaveFileDialog,
+    CreateNewFile,
   } from '../wailsjs/go/main/App';
   import {
     EventsOn,
@@ -247,8 +248,12 @@
     try {
       let targetPath = activeNote.path;
       if (!targetPath) {
+        const defaultName = activeNote.title.endsWith('.md')
+          ? activeNote.title
+          : `${activeNote.title}.md`;
         targetPath = await SaveFileDialog(
-          activeNote.title.endsWith('.md') ? activeNote.title : `${activeNote.title}.md`
+          currentFolder || '',
+          defaultName
         );
         if (!targetPath) return; // Cancelled
       }
@@ -271,7 +276,7 @@
       const defaultName = activeNote.title.endsWith('.md')
         ? activeNote.title
         : `${activeNote.title}.md`;
-      const targetPath = await SaveFileDialog(defaultName);
+      const targetPath = await SaveFileDialog(currentFolder || '', defaultName);
       if (!targetPath) return;
 
       const res = await SaveFile(targetPath, activeNote.content);
@@ -283,6 +288,18 @@
       handleRefreshFolder();
     } catch (err) {
       console.error('Failed to save file as:', err);
+    }
+  }
+
+  async function handleCreateFileInFolder(folderPath: string, fileName: string) {
+    try {
+      const res = await CreateNewFile(folderPath, fileName);
+      if (res) {
+        await handleRefreshFolder();
+        await openFilePath(res.path);
+      }
+    } catch (err) {
+      console.error('Failed to create file in folder:', err);
     }
   }
 
@@ -376,10 +393,7 @@
     applyAppSettings(settings);
 
     // Initialize initial note
-    const initialNote = createNewNote(
-      'Welcome.md',
-      `# Welcome to Tex ⚡\n\nA fast, distraction-free markdown notepad with live rendering.\n\n## Math Support (KaTeX)\nInline math: $E = mc^2$\n\n$$\n\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\n$$\n\n## Live Checklists\n- [x] Lightweight & Fast\n- [x] CodeMirror 6 live preview\n- [x] KaTeX math & Mermaid diagrams\n\n## Diagram Support (Mermaid)\n\`\`\`mermaid\ngraph LR\n  A[Write Markdown] --> B(Live Preview)\n  B --> C{Formulas & Diagrams}\n  C -->|Math| D[KaTeX]\n  C -->|Flow| E[Mermaid]\n\`\`\`\n\n### Shortcuts\n* **Ctrl+B**: Toggle Sidebar\n* **Ctrl+N**: New note\n* **Ctrl+O**: Open file\n* **Ctrl+Shift+O**: Open folder\n* **Ctrl+S**: Save file\n* **Ctrl+W**: Close note\n* **Ctrl+E**: Toggle Live Preview & Raw Source\n* **Ctrl+F**: Find & Replace\n* **Ctrl+,**: Preferences\n* **Ctrl+= / Ctrl+-**: Zoom font\n* **Ctrl+Tab**: Cycle notes`
-    );
+    const initialNote = createNewNote('Untitled', '');
 
     notes = [initialNote];
     activeNoteId = initialNote.id;
@@ -518,6 +532,7 @@
       onRefreshFolder={handleRefreshFolder}
       onToggleSidebar={toggleSidebar}
       onOpenSettings={() => { showSettingsModal = true; }}
+      onCreateFileInFolder={handleCreateFileInFolder}
     />
 
     <!-- Main Workspace -->

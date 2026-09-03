@@ -25,6 +25,13 @@ func main() {
 			if arg != "" && arg[0] != '-' {
 				abs, err := filepath.Abs(arg)
 				if err == nil {
+					// Create file if it does not exist already
+					if fi, statErr := os.Stat(abs); os.IsNotExist(statErr) {
+						_ = os.MkdirAll(filepath.Dir(abs), 0755)
+						_ = os.WriteFile(abs, []byte(""), 0644)
+					} else if statErr == nil && fi.IsDir() {
+						// directory
+					}
 					cliFiles = append(cliFiles, abs)
 				} else {
 					cliFiles = append(cliFiles, arg)
@@ -46,6 +53,14 @@ func main() {
 	defer cancelIPC()
 
 	_, _ = ipc.StartServer(ipcCtx, func(receivedFiles []string) {
+		for _, f := range receivedFiles {
+			if fi, statErr := os.Stat(f); os.IsNotExist(statErr) {
+				_ = os.MkdirAll(filepath.Dir(f), 0755)
+				_ = os.WriteFile(f, []byte(""), 0644)
+			} else if statErr == nil && fi.IsDir() {
+				// dir
+			}
+		}
 		if app.ctx != nil {
 			runtime.WindowUnminimise(app.ctx)
 			runtime.WindowShow(app.ctx)

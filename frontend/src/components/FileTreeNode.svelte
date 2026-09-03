@@ -7,11 +7,13 @@
     item,
     activePath,
     onSelectFile,
+    onFolderContextMenu,
     depth = 0,
   }: {
     item: FileTreeItem;
     activePath: string | null;
     onSelectFile: (path: string) => void;
+    onFolderContextMenu?: (e: MouseEvent, folderPath: string) => void;
     depth?: number;
   } = $props();
 
@@ -27,6 +29,14 @@
       onSelectFile(item.path);
     }
   }
+
+  function handleContextMenu(e: MouseEvent) {
+    if (item.isDir && onFolderContextMenu) {
+      e.preventDefault();
+      e.stopPropagation();
+      onFolderContextMenu(e, item.path);
+    }
+  }
 </script>
 
 <div class="tree-node" style="--depth: {depth}">
@@ -36,6 +46,7 @@
     class:active={isActive}
     class:is-dir={item.isDir}
     onclick={handleClick}
+    oncontextmenu={handleContextMenu}
     title={item.path}
   >
     {#if item.isDir}
@@ -69,6 +80,7 @@
           item={child}
           {activePath}
           {onSelectFile}
+          {onFolderContextMenu}
           depth={depth + 1}
         />
       {/each}
