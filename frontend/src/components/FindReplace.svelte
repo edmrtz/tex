@@ -299,13 +299,13 @@
 <style>
   .find-replace-container {
     position: absolute;
-    top: 10px;
-    right: 20px;
+    top: 8px;
+    right: 12px;
     z-index: 100;
-    background-color: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-radius: 0px;
     padding: 6px 8px;
     display: flex;
     flex-direction: column;
@@ -313,13 +313,14 @@
     min-width: 320px;
     max-width: 440px;
     user-select: none;
-    animation: fadeIn 0.12s ease-out;
+    font-family: var(--font-mono);
+    animation: fadeIn 0.1s ease-out;
   }
 
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(-4px);
+      transform: translateY(-3px);
     }
     to {
       opacity: 1;
@@ -337,23 +338,23 @@
   .toggle-replace-btn {
     background: transparent;
     border: none;
-    color: #71717a;
+    color: var(--text-muted);
     padding: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0px;
   }
 
   .toggle-replace-btn:hover {
-    color: #e4e4e7;
-    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    background-color: var(--bg-hover);
   }
 
   :global(.rotate-down) {
     transform: rotate(90deg);
-    transition: transform 0.15s ease;
+    transition: transform 0.12s ease;
   }
 
   .replace-spacer {
@@ -365,31 +366,31 @@
     flex: 1;
     display: flex;
     align-items: center;
-    background-color: #121215;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    padding: 4px 8px;
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 0px;
+    padding: 3px 8px;
     gap: 6px;
     min-width: 0;
   }
 
   .input-wrapper:focus-within {
-    border-color: rgba(56, 189, 248, 0.4);
+    border-color: var(--border-focus);
   }
 
   .find-input {
     background: transparent;
     border: none;
     outline: none;
-    color: #f4f4f5;
-    font-size: 12px;
-    font-family: inherit;
+    color: var(--text-bright);
+    font-size: 11.5px;
+    font-family: var(--font-mono);
     width: 100%;
     min-width: 0;
   }
 
   .find-input::placeholder {
-    color: #52525b;
+    color: var(--text-muted);
   }
 
   .mode-pills {
@@ -400,26 +401,27 @@
   }
 
   .pill {
-    font-size: 10px;
-    font-family: monospace;
-    font-weight: 600;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background-color: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    font-size: 9.5px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 1px 3px;
+    border-radius: 0px;
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid var(--accent);
   }
 
   .match-count {
     font-size: 11px;
-    color: #a1a1aa;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
     white-space: nowrap;
-    min-width: 48px;
+    min-width: 46px;
     text-align: right;
   }
 
   .no-match {
-    color: #f87171;
+    color: var(--danger);
   }
 
   .action-buttons {
@@ -430,20 +432,21 @@
 
   .btn-icon {
     background: transparent;
-    border: none;
-    color: #a1a1aa;
-    padding: 4px;
-    border-radius: 4px;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 3px;
+    border-radius: 0px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
   }
 
   .btn-icon:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
+    background-color: var(--bg-hover);
+    border-color: var(--border);
+    color: var(--text-bright);
   }
 
   .btn-icon:disabled {
@@ -452,7 +455,9 @@
   }
 
   .btn-close:hover {
-    color: #f87171;
+    background-color: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
   }
 
   .replace-actions {
@@ -462,21 +467,21 @@
   }
 
   .btn-text {
-    background-color: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #d4d4d8;
-    padding: 3px 8px;
+    background-color: var(--bg-hover);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 2px 7px;
     font-size: 11px;
-    font-family: inherit;
-    border-radius: 4px;
+    font-family: var(--font-mono);
+    border-radius: 0px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
   }
 
   .btn-text:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
+    background-color: var(--bg-active);
+    color: var(--text-bright);
   }
 
   .btn-text:disabled {

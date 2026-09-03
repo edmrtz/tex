@@ -56,13 +56,14 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Tex",
-		Width:  1080,
-		Height: 740,
+		Title:     "Tex",
+		Width:     1080,
+		Height:    740,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 255}, // Dark zinc background
+		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 20, A: 255}, // Dark TUI background
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		EnableDefaultContextMenu: true,

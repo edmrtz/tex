@@ -1,27 +1,54 @@
+/* system24 TUI Design System */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
+
 :root, :root[data-theme="dark"] {
-  --bg-main: #18181b;
-  --bg-subtle: #202023;
-  --bg-sidebar: #141416;
-  --bg-header: #18181b;
-  --border-color: rgba(255, 255, 255, 0.07);
-  --text-main: #f4f4f5;
-  --text-muted: #a1a1aa;
+  --bg-app: #121214;
+  --bg-sidebar: #161619;
+  --bg-header: #121214;
+  --bg-card: #19191d;
+  --bg-subtle: #1f1f25;
+  --bg-hover: rgba(255, 255, 255, 0.07);
+  --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-code: #16161a;
+  --bg-code-header: #1c1c22;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-focus: #38bdf8;
+  --text-main: #e4e4e7;
+  --text-bright: #ffffff;
+  --text-muted: #71717a;
   --accent: #38bdf8;
   --accent-hover: #0ea5e9;
+  --accent-subtle: rgba(56, 189, 248, 0.12);
   --dirty: #f59e0b;
+  --danger: #f87171;
+  --font-mono: 'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-ui: var(--font-mono);
 }
 
 :root[data-theme="light"] {
-  --bg-main: #ffffff;
-  --bg-subtle: #f8fafc;
-  --bg-sidebar: #f4f4f5;
-  --bg-header: #ffffff;
-  --border-color: rgba(0, 0, 0, 0.08);
+  --bg-app: #f4f4f6;
+  --bg-sidebar: #ebebee;
+  --bg-header: #f4f4f6;
+  --bg-card: #ffffff;
+  --bg-subtle: #e2e2e7;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-code: #fbfbfd;
+  --bg-code-header: #eaeaf0;
+  --border: rgba(0, 0, 0, 0.14);
+  --border-subtle: rgba(0, 0, 0, 0.07);
+  --border-focus: #0284c7;
   --text-main: #18181b;
+  --text-bright: #000000;
   --text-muted: #64748b;
   --accent: #0284c7;
   --accent-hover: #0369a1;
+  --accent-subtle: rgba(2, 132, 199, 0.1);
   --dirty: #d97706;
+  --danger: #dc2626;
+  --font-mono: 'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-ui: var(--font-mono);
 }
 
 * {
@@ -33,41 +60,215 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  background-color: var(--bg-main);
+  background-color: var(--bg-app);
   color: var(--text-main);
-  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  font-family: var(--font-ui);
+  letter-spacing: -0.02ch;
   overflow: hidden;
   user-select: none;
 }
 
 #app, .tex-app {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background-color: var(--bg-main);
+  background-color: var(--bg-app);
 }
 
+/* TUI Window Titlebar */
+.tui-window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  background-color: var(--bg-app);
+  border-bottom: 1px solid var(--border);
+  padding: 0 10px;
+  user-select: none;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: -0.02ch;
+  flex-shrink: 0;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tui-brand {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tui-bracket {
+  color: var(--text-muted);
+}
+
+.tui-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.tui-title-text {
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.tui-dirty-dot {
+  color: var(--dirty);
+  font-size: 10px;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tui-win-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 0px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.tui-win-btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-bright);
+}
+
+.tui-win-btn.btn-close:hover {
+  background-color: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+/* App Body (Sidebar + Main) */
+.app-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  height: calc(100% - 30px);
+  width: 100%;
+  overflow: hidden;
+}
+
+/* TUI Icons / Buttons */
 .icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-family: inherit;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 0px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
 
 .icon-btn:hover {
-  background-color: rgba(125, 125, 125, 0.12);
+  background-color: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-bright);
+}
+
+/* Main Workspace */
+.main-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-app);
+}
+
+/* Top Document Header */
+.document-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 12px;
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.document-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.document-title {
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.dirty-badge {
+  color: var(--dirty);
+  font-size: 10px;
+}
+
+.document-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mode-badge-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  border-radius: 0px;
+  background-color: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.mode-badge-btn:hover {
+  background-color: var(--bg-active);
 }
 
 /* Editor Host */
@@ -77,7 +278,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  background-color: var(--bg-main);
+  background-color: var(--bg-app);
   user-select: text;
 }
 
@@ -91,8 +292,8 @@ html, body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,24 +301,26 @@ html, body {
 }
 
 .modal-card {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0px;
   padding: 20px 24px;
   max-width: 420px;
   width: 90%;
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-mono);
 }
 
 .modal-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-main);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-bright);
   margin-bottom: 8px;
+  letter-spacing: -0.01em;
 }
 
 .modal-desc {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
   line-height: 1.5;
   margin-bottom: 20px;
@@ -126,40 +329,44 @@ html, body {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn {
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 0px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
 }
 
 .btn-secondary {
-  background-color: rgba(125, 125, 125, 0.15);
+  background-color: transparent;
   color: var(--text-main);
-  border-color: var(--border-color);
 }
 
 .btn-secondary:hover {
-  background-color: rgba(125, 125, 125, 0.25);
+  background-color: var(--bg-hover);
+  border-color: var(--border);
 }
 
 .btn-danger {
-  background-color: #dc2626;
+  background-color: var(--danger);
   color: #fff;
+  border-color: var(--danger);
 }
 
 .btn-danger:hover {
-  background-color: #b91c1c;
+  opacity: 0.9;
 }
 
 .btn-primary {
   background-color: var(--accent);
-  color: #fff;
+  color: #09090b;
+  font-weight: 600;
+  border-color: var(--accent);
 }
 
 .btn-primary:hover {

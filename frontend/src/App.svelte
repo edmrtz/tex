@@ -28,6 +28,9 @@
     WindowSetTitle,
     OnFileDrop,
     OnFileDropOff,
+    WindowMinimise,
+    WindowToggleMaximise,
+    Quit,
   } from '../wailsjs/runtime/runtime';
   import {
     PanelLeft,
@@ -479,110 +482,134 @@
 </script>
 
 <div class="tex-app">
-  <!-- Left File Tree Sidebar -->
-  <Sidebar
-    isOpen={sidebarOpen}
-    activePath={activeNote?.path || null}
-    {currentFolder}
-    {folderTree}
-    onSelectFile={(filePath) => openFilePath(filePath)}
-    onNewNote={addNote}
-    onOpenFile={handleOpenFile}
-    onOpenFolder={handleOpenFolder}
-    onRefreshFolder={handleRefreshFolder}
-    onToggleSidebar={toggleSidebar}
-    onOpenSettings={() => { showSettingsModal = true; }}
-  />
+  <!-- Top TUI Window Titlebar -->
+  <div class="tui-window-titlebar" style="--wails-draggable: drag;">
+    <div class="titlebar-left">
+      <span class="tui-bracket">[</span>
+      <span class="tui-brand">tex</span>
+      <span class="tui-bracket">]</span>
+      <span class="tui-sep">//</span>
+      <span class="tui-title-text">{activeNote?.title || 'untitled'}</span>
+      {#if activeNote?.isDirty}
+        <span class="tui-dirty-dot">●</span>
+      {/if}
+    </div>
 
-  <!-- Main Workspace -->
-  <div class="main-workspace">
-    <!-- Top Minimalist Document Header -->
-    <header class="document-header">
-      <div class="header-left">
-        <button
-          class="icon-btn sidebar-toggle-btn"
-          title="{sidebarOpen ? 'Hide Sidebar (Ctrl+B)' : 'Show Sidebar (Ctrl+B)'}"
-          onclick={toggleSidebar}
-          type="button"
-        >
-          {#if sidebarOpen}
-            <PanelLeftClose size={16} />
-          {:else}
-            <PanelLeft size={16} />
-          {/if}
-        </button>
+    <div class="titlebar-controls" style="--wails-draggable: no-drag;">
+      <button class="tui-win-btn" title="Minimize" onclick={WindowMinimise} type="button">_</button>
+      <button class="tui-win-btn" title="Maximize" onclick={WindowToggleMaximise} type="button">□</button>
+      <button class="tui-win-btn btn-close" title="Close" onclick={Quit} type="button">×</button>
+    </div>
+  </div>
 
-        <div class="document-title-wrapper">
-          <span class="document-title">
-            {activeNote?.title || 'Untitled Note'}
-          </span>
-          {#if activeNote?.isDirty}
-            <span class="dirty-badge" title="Unsaved changes">●</span>
-          {/if}
-          {#if activeNote?.path}
-            <span class="document-path" title={activeNote.path}>
-              {activeNote.path}
+  <!-- App Body (Sidebar + Editor) -->
+  <div class="app-body">
+    <!-- Left File Tree Sidebar -->
+    <Sidebar
+      isOpen={sidebarOpen}
+      activePath={activeNote?.path || null}
+      {currentFolder}
+      {folderTree}
+      onSelectFile={(filePath) => openFilePath(filePath)}
+      onNewNote={addNote}
+      onOpenFile={handleOpenFile}
+      onOpenFolder={handleOpenFolder}
+      onRefreshFolder={handleRefreshFolder}
+      onToggleSidebar={toggleSidebar}
+      onOpenSettings={() => { showSettingsModal = true; }}
+    />
+
+    <!-- Main Workspace -->
+    <div class="main-workspace">
+      <!-- Top Document Header -->
+      <header class="document-header">
+        <div class="header-left">
+          <button
+            class="icon-btn sidebar-toggle-btn"
+            title="{sidebarOpen ? 'Hide Sidebar (Ctrl+B)' : 'Show Sidebar (Ctrl+B)'}"
+            onclick={toggleSidebar}
+            type="button"
+          >
+            {#if sidebarOpen}
+              <PanelLeftClose size={15} />
+            {:else}
+              <PanelLeft size={15} />
+            {/if}
+          </button>
+
+          <div class="document-title-wrapper">
+            <span class="document-title">
+              {activeNote?.title || 'Untitled'}
             </span>
-          {/if}
+            {#if activeNote?.isDirty}
+              <span class="dirty-badge" title="Unsaved changes">●</span>
+            {/if}
+            {#if activeNote?.path}
+              <span class="document-path" title={activeNote.path}>
+                {activeNote.path}
+              </span>
+            {/if}
+          </div>
         </div>
-      </div>
 
-      <div class="header-right">
-        <button
-          class="icon-btn"
-          title="Find & Replace (Ctrl+F)"
-          onclick={() => { showFindReplace = !showFindReplace; }}
-          type="button"
-        >
-          <Search size={14} />
-          <span>Find</span>
-        </button>
+        <div class="header-right">
+          <button
+            class="icon-btn"
+            title="Find & Replace (Ctrl+F)"
+            onclick={() => { showFindReplace = !showFindReplace; }}
+            type="button"
+          >
+            <Search size={13} />
+            <span>[find]</span>
+          </button>
 
-        <button
-          class="icon-btn"
-          title="Save File (Ctrl+S)"
-          onclick={handleSave}
-          type="button"
-        >
-          <Save size={14} />
-          <span>Save</span>
-        </button>
+          <button
+            class="icon-btn"
+            title="Save File (Ctrl+S)"
+            onclick={handleSave}
+            type="button"
+          >
+            <Save size={13} />
+            <span>[save]</span>
+          </button>
 
-        <button
-          class="mode-badge-btn"
-          title="Toggle Live Render / Raw Source (Ctrl+E)"
-          onclick={toggleLiveMode}
-          type="button"
-        >
-          {#if editorMode === 'live'}
-            <Eye size={13} />
-            <span>Live</span>
-          {:else}
-            <Code size={13} />
-            <span>Raw</span>
-          {/if}
-        </button>
+          <button
+            class="mode-badge-btn"
+            title="Toggle Live Render / Raw Source (Ctrl+E)"
+            onclick={toggleLiveMode}
+            type="button"
+          >
+            {#if editorMode === 'live'}
+              <Eye size={13} />
+              <span>[live]</span>
+            {:else}
+              <Code size={13} />
+              <span>[raw]</span>
+            {/if}
+          </button>
 
-        <button
-          class="icon-btn"
-          title="Preferences (Ctrl+,)"
-          onclick={() => { showSettingsModal = true; }}
-          type="button"
-        >
-          <SettingsIcon size={14} />
-        </button>
-      </div>
-    </header>
+          <button
+            class="icon-btn"
+            title="Preferences (Ctrl+,)"
+            onclick={() => { showSettingsModal = true; }}
+            type="button"
+          >
+            <SettingsIcon size={13} />
+            <span>[prefs]</span>
+          </button>
+        </div>
+      </header>
 
-    <!-- Editor Container -->
-    <main class="editor-container">
-      <FindReplace
-        view={editorInstance?.view || null}
-        isOpen={showFindReplace}
-        onClose={() => { showFindReplace = false; }}
-      />
-      <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
-    </main>
+      <!-- Editor Container -->
+      <main class="editor-container">
+        <FindReplace
+          view={editorInstance?.view || null}
+          isOpen={showFindReplace}
+          onClose={() => { showFindReplace = false; }}
+        />
+        <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
+      </main>
+    </div>
   </div>
 
   <!-- Preferences / Settings Modal -->

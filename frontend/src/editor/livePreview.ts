@@ -55,13 +55,10 @@ class CodeBlockHeaderWidget extends WidgetType {
   }
 
   toDOM() {
-    const div = document.createElement('div');
-    div.className = 'cm-codeblock-header';
-    const langSpan = document.createElement('span');
-    langSpan.className = 'cm-codeblock-lang';
-    langSpan.textContent = this.lang ? this.lang.toUpperCase() : 'CODE';
-    div.appendChild(langSpan);
-    return div;
+    const span = document.createElement('span');
+    span.className = 'cm-codeblock-lang-badge';
+    span.textContent = `[${this.lang ? this.lang.toLowerCase() : 'code'}]`;
+    return span;
   }
 
   ignoreEvent() {
@@ -191,7 +188,10 @@ function computeDecorations(state: EditorState): DecorationSet {
         const endLine = state.doc.lineAt(nodeTo);
 
         if (!hasCursor && startLine.number < endLine.number) {
-          // Hide opening fence and replace with CodeBlockHeaderWidget
+          // Opening header line
+          ranges.push(
+            Decoration.line({ class: 'cm-codeblock-header-line' }).range(startLine.from, startLine.from)
+          );
           addReplacement(
             startLine.from,
             startLine.to,
@@ -200,18 +200,18 @@ function computeDecorations(state: EditorState): DecorationSet {
             })
           );
 
-          // Style interior lines
+          // Interior code lines
           for (let l = startLine.number + 1; l < endLine.number; l++) {
             const line = state.doc.line(l);
-            const isLast = l === endLine.number - 1;
             ranges.push(
-              Decoration.line({
-                class: isLast ? 'cm-codeblock-line cm-codeblock-line-last' : 'cm-codeblock-line',
-              }).range(line.from, line.from)
+              Decoration.line({ class: 'cm-codeblock-line' }).range(line.from, line.from)
             );
           }
 
-          // Hide closing fence line
+          // Closing footer line
+          ranges.push(
+            Decoration.line({ class: 'cm-codeblock-footer-line' }).range(endLine.from, endLine.from)
+          );
           addReplacement(
             endLine.from,
             endLine.to,

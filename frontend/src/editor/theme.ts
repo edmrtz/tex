@@ -10,7 +10,7 @@ export function getUiFontFamily(fontKey: string): string {
       return '"Georgia", Cambria, "Times New Roman", serif';
     case 'system':
     default:
-      return 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+      return "'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace";
   }
 }
 
@@ -24,7 +24,7 @@ export function getMonoFontFamily(fontKey: string): string {
       return '"Consolas", "Courier New", monospace';
     case 'default':
     default:
-      return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      return "'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace";
   }
 }
 
@@ -35,8 +35,9 @@ export function createFontTheme(fontSizePx: number, uiFontKey: string, monoFontK
     '&': {
       fontSize: `${fontSizePx}px`,
       fontFamily: uiFont,
+      letterSpacing: '-0.02ch',
     },
-    '.cm-codeblock-line, .cm-inline-code': {
+    '.cm-codeblock-line, .cm-inline-code, .cm-codeblock-header-line': {
       fontFamily: monoFont,
     },
   });
@@ -48,42 +49,63 @@ export const createFontSizeTheme = (sizePx: number) => createFontTheme(sizePx, '
 export const editorThemeDark = EditorView.theme({
   '&': {
     height: '100%',
-    color: '#e4e4e7',
-    backgroundColor: '#18181b',
+    color: 'var(--text-main, #e4e4e7)',
+    backgroundColor: 'var(--bg-app, #121214)',
   },
   '.cm-content': {
-    caretColor: '#38bdf8',
-    padding: '28px 36px',
-    lineHeight: '1.75',
-    maxWidth: '850px',
-    margin: '0 auto',
+    caretColor: 'var(--accent, #38bdf8)',
+    padding: '16px 24px 64px 24px',
+    lineHeight: '1.7',
+    maxWidth: '960px',
   },
   '&.cm-focused': {
     outline: 'none',
   },
   '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: '#38bdf8',
+    borderLeftColor: 'var(--accent, #38bdf8)',
     borderLeftWidth: '2px',
   },
   '.cm-selectionBackground, ::selection': {
     backgroundColor: 'rgba(56, 189, 248, 0.25) !important',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'rgba(255, 255, 255, 0.025)',
   },
   '.cm-scroller': {
     overflow: 'auto',
     fontFamily: 'inherit',
   },
+  // Line Numbers Gutters
   '.cm-gutters': {
-    backgroundColor: '#141416',
-    color: '#52525b',
+    backgroundColor: 'var(--bg-app, #121214)',
+    color: 'var(--text-muted, #71717a)',
     border: 'none',
-    borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+    borderRight: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    paddingRight: '8px',
+    paddingLeft: '4px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.85em',
   },
   '.cm-activeLineGutter': {
     backgroundColor: 'transparent',
-    color: '#38bdf8',
+    color: 'var(--accent, #38bdf8)',
+    fontWeight: 'bold',
+  },
+  // Search Match Highlighting
+  '.cm-searchMatch': {
+    backgroundColor: '#facc15 !important', // bright amber
+    color: '#000000 !important',
+    borderRadius: '1px',
+    padding: '0 2px',
+    fontWeight: '600',
+  },
+  '.cm-searchMatch-selected': {
+    backgroundColor: '#38bdf8 !important', // bright cyan
+    color: '#000000 !important',
+    outline: '1px solid #0284c7',
+    borderRadius: '1px',
+    padding: '0 2px',
+    fontWeight: '600',
   },
   // Headings
   '.cm-heading': {
@@ -91,26 +113,26 @@ export const editorThemeDark = EditorView.theme({
     color: '#fafafa',
   },
   '.cm-heading-1': {
-    fontSize: '2em',
+    fontSize: '1.8em',
     lineHeight: '1.3',
     paddingBottom: '0.25em',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     marginBottom: '0.5em',
   },
   '.cm-heading-2': {
-    fontSize: '1.6em',
+    fontSize: '1.5em',
     lineHeight: '1.35',
     paddingBottom: '0.2em',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
     marginTop: '0.75em',
   },
   '.cm-heading-3': {
-    fontSize: '1.3em',
+    fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
   },
   '.cm-heading-4': {
-    fontSize: '1.15em',
+    fontSize: '1.1em',
     color: '#d4d4d8',
   },
   '.cm-heading-5': {
@@ -136,66 +158,68 @@ export const editorThemeDark = EditorView.theme({
     color: '#71717a',
   },
   '.cm-inline-code': {
-    backgroundColor: '#27272a',
-    color: '#38bdf8',
-    padding: '2px 6px',
-    borderRadius: '4px',
+    backgroundColor: 'var(--bg-card, #19191d)',
+    color: 'var(--accent, #38bdf8)',
+    padding: '1px 5px',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     fontSize: '0.9em',
   },
-  // Fenced Code Blocks
-  '.cm-codeblock-header': {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121215',
-    padding: '4px 14px',
-    borderTopLeftRadius: '6px',
-    borderTopRightRadius: '6px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderBottom: 'none',
-    marginTop: '12px',
+  // Contiguous TUI Code Blocks
+  '.cm-codeblock-header-line': {
+    backgroundColor: 'var(--bg-code-header, #1c1c22) !important',
+    borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    borderLeft: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    borderRight: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    padding: '4px 12px !important',
+    lineHeight: '1.4 !important',
+    margin: '12px 0 0 0 !important',
   },
-  '.cm-codeblock-lang': {
+  '.cm-codeblock-lang-badge': {
     fontSize: '11px',
     fontWeight: '700',
-    letterSpacing: '0.06em',
-    color: '#71717a',
-    textTransform: 'uppercase',
+    color: 'var(--accent, #38bdf8)',
+    fontFamily: 'var(--font-mono)',
   },
   '.cm-codeblock-line': {
-    backgroundColor: '#161619',
+    backgroundColor: 'var(--bg-code, #16161a) !important',
     fontSize: '0.9em',
-    paddingLeft: '16px',
-    paddingRight: '16px',
-    lineHeight: '1.6',
-    borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+    paddingLeft: '14px !important',
+    paddingRight: '14px !important',
+    lineHeight: '1.6 !important',
+    borderLeft: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    borderRight: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
   },
-  '.cm-codeblock-line-last': {
-    borderBottomLeftRadius: '6px',
-    borderBottomRightRadius: '6px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    paddingBottom: '6px',
-    marginBottom: '12px',
+  '.cm-codeblock-footer-line': {
+    backgroundColor: 'var(--bg-code, #16161a) !important',
+    borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    borderLeft: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    borderRight: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    height: '6px !important',
+    minHeight: '6px !important',
+    lineHeight: '0 !important',
+    padding: '0 !important',
+    margin: '0 0 12px 0 !important',
   },
   '.cm-codeblock-fence': {
-    color: '#52525b',
+    color: 'var(--text-muted, #71717a)',
+    fontWeight: '500',
   },
   '.cm-blockquote-line': {
-    borderLeft: '3px solid #38bdf8',
+    borderLeft: '3px solid var(--accent, #38bdf8)',
     paddingLeft: '14px',
-    color: '#a1a1aa',
+    color: 'var(--text-muted, #a1a1aa)',
     fontStyle: 'italic',
   },
   '.cm-hr': {
     border: 'none',
-    borderTop: '1px solid #3f3f46',
+    borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     margin: '16px 0',
   },
   '.cm-task-checkbox': {
     marginRight: '8px',
     cursor: 'pointer',
-    accentColor: '#38bdf8',
+    accentColor: 'var(--accent, #38bdf8)',
     transform: 'scale(1.15)',
     verticalAlign: 'middle',
   },
@@ -205,24 +229,21 @@ export const editorThemeDark = EditorView.theme({
     justifyContent: 'center',
     padding: '16px 0',
     margin: '8px 0',
-    backgroundColor: '#1a1a1e',
-    borderRadius: '6px',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'var(--bg-card, #19191d)',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     cursor: 'pointer',
     overflowX: 'auto',
-    transition: 'border-color 0.15s ease',
+    transition: 'border-color 0.1s ease',
   },
   '.cm-math-container:hover': {
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'var(--accent, #38bdf8)',
   },
   '.cm-math-inline': {
     cursor: 'pointer',
-    padding: '1px 3px',
-    borderRadius: '3px',
-    transition: 'background-color 0.15s ease',
-  },
-  '.cm-math-inline:hover': {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    padding: '1px 4px',
+    borderRadius: '0px',
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
   },
   // Mermaid containers
   '.cm-mermaid-container': {
@@ -231,16 +252,15 @@ export const editorThemeDark = EditorView.theme({
     alignItems: 'center',
     padding: '20px 16px',
     margin: '12px 0',
-    backgroundColor: '#1a1a1e',
-    borderRadius: '8px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'var(--bg-card, #19191d)',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     cursor: 'pointer',
     overflowX: 'auto',
     minHeight: '60px',
-    transition: 'border-color 0.15s ease',
   },
   '.cm-mermaid-container:hover': {
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'var(--accent, #38bdf8)',
   },
   '.cm-mermaid-container svg': {
     maxWidth: '100%',
@@ -252,23 +272,23 @@ export const editorThemeDark = EditorView.theme({
     fontSize: '13px',
   },
   '.cm-mermaid-error': {
-    color: '#f87171',
-    padding: '12px',
-    borderRadius: '6px',
+    color: 'var(--danger, #f87171)',
+    padding: '10px 14px',
+    borderRadius: '0px',
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.2)',
-    fontSize: '13px',
+    border: '1px solid var(--danger, #f87171)',
+    fontSize: '12px',
     width: '100%',
   },
   '.cm-mermaid-error-title': {
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: '4px',
   },
   '.cm-mermaid-error pre': {
     margin: 0,
     whiteSpace: 'pre-wrap',
-    fontFamily: 'monospace',
-    fontSize: '12px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11.5px',
     color: '#fca5a5',
   },
 });
@@ -276,42 +296,63 @@ export const editorThemeDark = EditorView.theme({
 export const editorThemeLight = EditorView.theme({
   '&': {
     height: '100%',
-    color: '#18181b',
-    backgroundColor: '#ffffff',
+    color: 'var(--text-main, #18181b)',
+    backgroundColor: 'var(--bg-app, #f4f4f6)',
   },
   '.cm-content': {
-    caretColor: '#0284c7',
-    padding: '28px 36px',
-    lineHeight: '1.75',
-    maxWidth: '850px',
-    margin: '0 auto',
+    caretColor: 'var(--accent, #0284c7)',
+    padding: '16px 24px 64px 24px',
+    lineHeight: '1.7',
+    maxWidth: '960px',
   },
   '&.cm-focused': {
     outline: 'none',
   },
   '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: '#0284c7',
+    borderLeftColor: 'var(--accent, #0284c7)',
     borderLeftWidth: '2px',
   },
   '.cm-selectionBackground, ::selection': {
     backgroundColor: 'rgba(2, 132, 199, 0.2) !important',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(0, 0, 0, 0.025)',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
   },
   '.cm-scroller': {
     overflow: 'auto',
     fontFamily: 'inherit',
   },
+  // Line Numbers Gutters
   '.cm-gutters': {
-    backgroundColor: '#f8fafc',
-    color: '#94a3b8',
+    backgroundColor: 'var(--bg-app, #f4f4f6)',
+    color: 'var(--text-muted, #64748b)',
     border: 'none',
-    borderRight: '1px solid rgba(0, 0, 0, 0.06)',
+    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    paddingRight: '8px',
+    paddingLeft: '4px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.85em',
   },
   '.cm-activeLineGutter': {
     backgroundColor: 'transparent',
-    color: '#0284c7',
+    color: 'var(--accent, #0284c7)',
+    fontWeight: 'bold',
+  },
+  // Search Match Highlighting
+  '.cm-searchMatch': {
+    backgroundColor: '#facc15 !important',
+    color: '#000000 !important',
+    borderRadius: '1px',
+    padding: '0 2px',
+    fontWeight: '600',
+  },
+  '.cm-searchMatch-selected': {
+    backgroundColor: '#0284c7 !important',
+    color: '#ffffff !important',
+    outline: '1px solid #0369a1',
+    borderRadius: '1px',
+    padding: '0 2px',
+    fontWeight: '600',
   },
   // Headings
   '.cm-heading': {
@@ -319,26 +360,26 @@ export const editorThemeLight = EditorView.theme({
     color: '#09090b',
   },
   '.cm-heading-1': {
-    fontSize: '2em',
+    fontSize: '1.8em',
     lineHeight: '1.3',
     paddingBottom: '0.25em',
-    borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+    borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     marginBottom: '0.5em',
   },
   '.cm-heading-2': {
-    fontSize: '1.6em',
+    fontSize: '1.5em',
     lineHeight: '1.35',
     paddingBottom: '0.2em',
-    borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+    borderBottom: '1px solid var(--border-subtle, rgba(0, 0, 0, 0.07))',
     marginTop: '0.75em',
   },
   '.cm-heading-3': {
-    fontSize: '1.3em',
+    fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
   },
   '.cm-heading-4': {
-    fontSize: '1.15em',
+    fontSize: '1.1em',
     color: '#27272a',
   },
   '.cm-heading-5': {
@@ -364,66 +405,68 @@ export const editorThemeLight = EditorView.theme({
     color: '#a1a1aa',
   },
   '.cm-inline-code': {
-    backgroundColor: '#f1f5f9',
-    color: '#0284c7',
-    padding: '2px 6px',
-    borderRadius: '4px',
+    backgroundColor: 'var(--bg-card, #ffffff)',
+    color: 'var(--accent, #0284c7)',
+    padding: '1px 5px',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     fontSize: '0.9em',
   },
-  // Fenced Code Blocks
-  '.cm-codeblock-header': {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f1f5f9',
-    padding: '4px 14px',
-    borderTopLeftRadius: '6px',
-    borderTopRightRadius: '6px',
-    border: '1px solid rgba(0, 0, 0, 0.08)',
-    borderBottom: 'none',
-    marginTop: '12px',
+  // Contiguous TUI Code Blocks
+  '.cm-codeblock-header-line': {
+    backgroundColor: 'var(--bg-code-header, #eaeaf0) !important',
+    borderTop: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    padding: '4px 12px !important',
+    lineHeight: '1.4 !important',
+    margin: '12px 0 0 0 !important',
   },
-  '.cm-codeblock-lang': {
+  '.cm-codeblock-lang-badge': {
     fontSize: '11px',
     fontWeight: '700',
-    letterSpacing: '0.06em',
-    color: '#64748b',
-    textTransform: 'uppercase',
+    color: 'var(--accent, #0284c7)',
+    fontFamily: 'var(--font-mono)',
   },
   '.cm-codeblock-line': {
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'var(--bg-code, #fbfbfd) !important',
     fontSize: '0.9em',
-    paddingLeft: '16px',
-    paddingRight: '16px',
-    lineHeight: '1.6',
-    borderLeft: '1px solid rgba(0, 0, 0, 0.08)',
-    borderRight: '1px solid rgba(0, 0, 0, 0.08)',
+    paddingLeft: '14px !important',
+    paddingRight: '14px !important',
+    lineHeight: '1.6 !important',
+    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
   },
-  '.cm-codeblock-line-last': {
-    borderBottomLeftRadius: '6px',
-    borderBottomRightRadius: '6px',
-    borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-    paddingBottom: '6px',
-    marginBottom: '12px',
+  '.cm-codeblock-footer-line': {
+    backgroundColor: 'var(--bg-code, #fbfbfd) !important',
+    borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    height: '6px !important',
+    minHeight: '6px !important',
+    lineHeight: '0 !important',
+    padding: '0 !important',
+    margin: '0 0 12px 0 !important',
   },
   '.cm-codeblock-fence': {
-    color: '#94a3b8',
+    color: 'var(--text-muted, #64748b)',
+    fontWeight: '500',
   },
   '.cm-blockquote-line': {
-    borderLeft: '3px solid #0284c7',
+    borderLeft: '3px solid var(--accent, #0284c7)',
     paddingLeft: '14px',
     color: '#475569',
     fontStyle: 'italic',
   },
   '.cm-hr': {
     border: 'none',
-    borderTop: '1px solid #e2e8f0',
+    borderTop: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     margin: '16px 0',
   },
   '.cm-task-checkbox': {
     marginRight: '8px',
     cursor: 'pointer',
-    accentColor: '#0284c7',
+    accentColor: 'var(--accent, #0284c7)',
     transform: 'scale(1.15)',
     verticalAlign: 'middle',
   },
@@ -433,24 +476,20 @@ export const editorThemeLight = EditorView.theme({
     justifyContent: 'center',
     padding: '16px 0',
     margin: '8px 0',
-    backgroundColor: '#f8fafc',
-    borderRadius: '6px',
-    border: '1px solid rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'var(--bg-card, #ffffff)',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     cursor: 'pointer',
     overflowX: 'auto',
-    transition: 'border-color 0.15s ease',
   },
   '.cm-math-container:hover': {
-    borderColor: 'rgba(2, 132, 199, 0.4)',
+    borderColor: 'var(--accent, #0284c7)',
   },
   '.cm-math-inline': {
     cursor: 'pointer',
-    padding: '1px 3px',
-    borderRadius: '3px',
-    transition: 'background-color 0.15s ease',
-  },
-  '.cm-math-inline:hover': {
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    padding: '1px 4px',
+    borderRadius: '0px',
+    backgroundColor: 'rgba(2, 132, 199, 0.1)',
   },
   // Mermaid containers
   '.cm-mermaid-container': {
@@ -459,44 +498,43 @@ export const editorThemeLight = EditorView.theme({
     alignItems: 'center',
     padding: '20px 16px',
     margin: '12px 0',
-    backgroundColor: '#f8fafc',
-    borderRadius: '8px',
-    border: '1px solid rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'var(--bg-card, #ffffff)',
+    borderRadius: '0px',
+    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     cursor: 'pointer',
     overflowX: 'auto',
     minHeight: '60px',
-    transition: 'border-color 0.15s ease',
   },
   '.cm-mermaid-container:hover': {
-    borderColor: 'rgba(2, 132, 199, 0.4)',
+    borderColor: 'var(--accent, #0284c7)',
   },
   '.cm-mermaid-container svg': {
     maxWidth: '100%',
     height: 'auto',
   },
   '.cm-mermaid-placeholder': {
-    color: '#94a3b8',
+    color: '#64748b',
     fontStyle: 'italic',
     fontSize: '13px',
   },
   '.cm-mermaid-error': {
-    color: '#dc2626',
-    padding: '12px',
-    borderRadius: '6px',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    border: '1px solid rgba(239, 68, 68, 0.2)',
-    fontSize: '13px',
+    color: 'var(--danger, #dc2626)',
+    padding: '10px 14px',
+    borderRadius: '0px',
+    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+    border: '1px solid var(--danger, #dc2626)',
+    fontSize: '12px',
     width: '100%',
   },
   '.cm-mermaid-error-title': {
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: '4px',
   },
   '.cm-mermaid-error pre': {
     margin: 0,
     whiteSpace: 'pre-wrap',
-    fontFamily: 'monospace',
-    fontSize: '12px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11.5px',
     color: '#dc2626',
   },
 });

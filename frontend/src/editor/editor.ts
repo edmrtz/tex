@@ -11,7 +11,7 @@ import {
   lineNumbers,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { search } from '@codemirror/search';
+import { search, highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
@@ -120,6 +120,7 @@ export function createMarkdownEditor(
       history(),
       dropCursor(),
       highlightActiveLine(),
+      highlightSelectionMatches(),
       search({ top: true }),
       customKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),

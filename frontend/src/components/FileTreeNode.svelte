@@ -85,28 +85,28 @@
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 5px 8px 5px calc(8px + var(--depth) * 12px);
+    padding: 4px 6px 4px calc(6px + var(--depth) * 12px);
     background: transparent;
     border: none;
-    border-radius: 6px;
-    color: #a1a1aa;
-    font-size: 13px;
-    font-family: inherit;
+    border-radius: 0px;
+    color: var(--text-main);
+    font-size: 11.5px;
+    font-family: var(--font-mono);
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
     gap: 6px;
   }
 
   .tree-row:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: #e4e4e7;
+    background-color: var(--bg-hover);
+    color: var(--text-bright);
   }
 
   .tree-row.active {
-    background-color: rgba(56, 189, 248, 0.12);
-    color: #38bdf8;
-    font-weight: 500;
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+    font-weight: 600;
   }
 
   .tree-chevron {
@@ -115,7 +115,7 @@
     justify-content: center;
     width: 14px;
     height: 14px;
-    color: #71717a;
+    color: var(--text-muted);
     flex-shrink: 0;
   }
 
@@ -131,15 +131,15 @@
   }
 
   .dir-icon {
-    color: #f59e0b;
+    color: var(--dirty);
   }
 
   .file-icon {
-    color: #94a3b8;
+    color: var(--text-muted);
   }
 
   .tree-row.active .file-icon {
-    color: #38bdf8;
+    color: var(--accent);
   }
 
   .tree-label {

@@ -76,12 +76,11 @@
     <!-- Header -->
     <div class="sidebar-header">
       <div class="workspace-meta">
-        <span class="workspace-icon">
-          <Folder size={16} />
-        </span>
+        <span class="tui-bracket">[</span>
         <span class="workspace-name" title={currentFolder}>
           {getFolderDisplayName(currentFolder)}
         </span>
+        <span class="tui-bracket">]</span>
       </div>
 
       <div class="header-actions">
@@ -191,15 +190,16 @@
 
 <style>
   .sidebar {
-    width: 260px;
-    min-width: 260px;
+    width: 250px;
+    min-width: 250px;
     height: 100%;
-    background-color: #141416;
-    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     user-select: none;
     z-index: 10;
+    font-family: var(--font-mono);
   }
 
   /* Header */
@@ -207,38 +207,37 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-sidebar);
   }
 
   .workspace-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     min-width: 0;
   }
 
-  .workspace-icon {
-    color: #38bdf8;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
+  .tui-bracket {
+    color: var(--text-muted);
+    font-size: 11.5px;
   }
 
   .workspace-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #e4e4e7;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-main);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
 
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     flex-shrink: 0;
   }
 
@@ -246,43 +245,45 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: #a1a1aa;
+    border: 1px solid transparent;
+    border-radius: 0px;
+    color: var(--text-muted);
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
   }
 
   .action-btn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
+    background-color: var(--bg-hover);
+    border-color: var(--border);
+    color: var(--text-bright);
   }
 
   /* Search */
   .sidebar-search {
-    padding: 8px 12px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .search-input-wrapper {
     display: flex;
     align-items: center;
-    background-color: #1c1c20;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
-    padding: 5px 8px;
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 0px;
+    padding: 3px 6px;
     gap: 6px;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.1s ease;
   }
 
   .search-input-wrapper:focus-within {
-    border-color: rgba(56, 189, 248, 0.4);
+    border-color: var(--border-focus);
   }
 
   :global(.search-icon) {
-    color: #71717a;
+    color: var(--text-muted);
     flex-shrink: 0;
   }
 
@@ -290,30 +291,30 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #e4e4e7;
-    font-size: 12px;
-    font-family: inherit;
+    color: var(--text-bright);
+    font-size: 11px;
+    font-family: var(--font-mono);
     width: 100%;
   }
 
   .search-input::placeholder {
-    color: #52525b;
+    color: var(--text-muted);
   }
 
   .clear-search {
     background: transparent;
     border: none;
-    color: #71717a;
+    color: var(--text-muted);
     cursor: pointer;
     padding: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 0px;
   }
 
   .clear-search:hover {
-    color: #e4e4e7;
+    color: var(--text-bright);
   }
 
   /* Content */
@@ -321,7 +322,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px 8px 16px;
+    padding: 6px 6px 16px;
   }
 
   .sidebar-content::-webkit-scrollbar {
@@ -329,8 +330,8 @@
   }
 
   .sidebar-content::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    background-color: var(--border);
+    border-radius: 0px;
   }
 
   .tree-list {
@@ -340,35 +341,34 @@
   }
 
   .folder-prompt {
-    padding: 16px 8px;
+    padding: 12px 6px;
   }
 
   .btn-open-folder {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding: 10px 12px;
-    background-color: rgba(255, 255, 255, 0.03);
-    border: 1px dashed rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    color: #a1a1aa;
-    font-size: 12px;
-    font-family: inherit;
+    padding: 8px 10px;
+    background-color: var(--bg-hover);
+    border: 1px dashed var(--border);
+    border-radius: 0px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-family: var(--font-mono);
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
   }
 
   .btn-open-folder:hover {
-    background-color: rgba(56, 189, 248, 0.08);
-    border-color: rgba(56, 189, 248, 0.3);
-    color: #38bdf8;
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .empty-state {
-    font-size: 12px;
-    color: #52525b;
+    font-size: 11px;
+    color: var(--text-muted);
     font-style: italic;
     padding: 16px 10px;
     text-align: center;
@@ -376,35 +376,37 @@
 
   /* Footer */
   .sidebar-footer {
-    padding: 8px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    background-color: var(--bg-sidebar);
   }
 
   .footer-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding: 6px 10px;
+    padding: 4px 6px;
     background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: #a1a1aa;
-    font-size: 12px;
-    font-family: inherit;
+    border: 1px solid transparent;
+    border-radius: 0px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
   }
 
   .footer-btn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: #e4e4e7;
+    background-color: var(--bg-hover);
+    border-color: var(--border);
+    color: var(--text-bright);
   }
 
   .shortcut-tag {
     margin-left: auto;
     font-size: 10px;
-    color: #52525b;
-    font-family: monospace;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
   }
 </style>

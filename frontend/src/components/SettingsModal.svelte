@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AppSettings } from '../types';
-  import { X, Moon, Sun, Type, Code, Hash, Terminal } from '@lucide/svelte';
+  import { X, Moon, Sun, Hash, Terminal } from '@lucide/svelte';
 
   let {
     isOpen,
@@ -54,138 +54,188 @@
       <!-- Header -->
       <div class="modal-header">
         <div class="header-title">
-          <h3>Preferences</h3>
-          <span class="header-sub">Configure Tex appearance & editor settings</span>
+          <span class="tui-bracket">[</span>
+          <span class="tui-label">preferences</span>
+          <span class="tui-bracket">]</span>
         </div>
-        <button class="close-btn" onclick={onClose} type="button" title="Close (Esc)">
-          <X size={16} />
+        <button class="tui-btn-close" onclick={onClose} type="button" title="Close (Esc)">
+          <X size={14} />
         </button>
       </div>
 
       <div class="modal-body">
         <!-- Section: Theme -->
         <div class="settings-group">
-          <div class="group-label">
-            <span class="label-icon"><Moon size={15} /></span>
-            <span class="label-text">Color Theme</span>
+          <div class="group-header">
+            <span class="group-name">Color Theme</span>
           </div>
-          <div class="segmented-control">
+          <div class="tui-btn-group">
             <button
-              class="seg-btn"
-              class:active={draft.theme === 'dark'}
+              class="tui-option-btn"
+              class:selected={draft.theme === 'dark'}
               onclick={() => update('theme', 'dark')}
               type="button"
             >
-              <Moon size={13} />
-              <span>Dark</span>
+              <span class="indicator">{draft.theme === 'dark' ? '[x]' : '[ ]'}</span>
+              <span>Dark (midnight)</span>
             </button>
             <button
-              class="seg-btn"
-              class:active={draft.theme === 'light'}
+              class="tui-option-btn"
+              class:selected={draft.theme === 'light'}
               onclick={() => update('theme', 'light')}
               type="button"
             >
-              <Sun size={13} />
-              <span>Light</span>
+              <span class="indicator">{draft.theme === 'light' ? '[x]' : '[ ]'}</span>
+              <span>Light (daylight)</span>
             </button>
           </div>
         </div>
 
         <!-- Section: UI Font -->
         <div class="settings-group">
-          <div class="group-label">
-            <span class="label-icon"><Type size={15} /></span>
-            <span class="label-text">UI Font</span>
+          <div class="group-header">
+            <span class="group-name">UI Typography</span>
           </div>
-          <select
-            class="settings-select"
-            value={draft.uiFont}
-            onchange={(e) => update('uiFont', e.currentTarget.value as any)}
-          >
-            <option value="system">System Default</option>
-            <option value="inter">Inter / Modern Sans</option>
-            <option value="serif">Serif / Reading</option>
-          </select>
+          <div class="tui-btn-grid">
+            <button
+              class="tui-option-btn"
+              class:selected={draft.uiFont === 'system'}
+              onclick={() => update('uiFont', 'system')}
+              type="button"
+            >
+              <span class="indicator">{draft.uiFont === 'system' ? '[x]' : '[ ]'}</span>
+              <span>DM Mono (TUI Default)</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.uiFont === 'inter'}
+              onclick={() => update('uiFont', 'inter')}
+              type="button"
+            >
+              <span class="indicator">{draft.uiFont === 'inter' ? '[x]' : '[ ]'}</span>
+              <span>Inter (Modern Sans)</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.uiFont === 'serif'}
+              onclick={() => update('uiFont', 'serif')}
+              type="button"
+            >
+              <span class="indicator">{draft.uiFont === 'serif' ? '[x]' : '[ ]'}</span>
+              <span>Serif (Editorial)</span>
+            </button>
+          </div>
         </div>
 
         <!-- Section: Code Font -->
         <div class="settings-group">
-          <div class="group-label">
-            <span class="label-icon"><Code size={15} /></span>
-            <span class="label-text">Monospace / Code Font</span>
+          <div class="group-header">
+            <span class="group-name">Monospace / Code Font</span>
           </div>
-          <select
-            class="settings-select"
-            value={draft.monoFont}
-            onchange={(e) => update('monoFont', e.currentTarget.value as any)}
-          >
-            <option value="default">System Monospace</option>
-            <option value="jetbrains">JetBrains Mono</option>
-            <option value="fira">Fira Code</option>
-            <option value="consolas">Consolas</option>
-          </select>
+          <div class="tui-btn-grid">
+            <button
+              class="tui-option-btn"
+              class:selected={draft.monoFont === 'default'}
+              onclick={() => update('monoFont', 'default')}
+              type="button"
+            >
+              <span class="indicator">{draft.monoFont === 'default' ? '[x]' : '[ ]'}</span>
+              <span>DM Mono</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.monoFont === 'jetbrains'}
+              onclick={() => update('monoFont', 'jetbrains')}
+              type="button"
+            >
+              <span class="indicator">{draft.monoFont === 'jetbrains' ? '[x]' : '[ ]'}</span>
+              <span>JetBrains Mono</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.monoFont === 'fira'}
+              onclick={() => update('monoFont', 'fira')}
+              type="button"
+            >
+              <span class="indicator">{draft.monoFont === 'fira' ? '[x]' : '[ ]'}</span>
+              <span>Fira Code</span>
+            </button>
+            <button
+              class="tui-option-btn"
+              class:selected={draft.monoFont === 'consolas'}
+              onclick={() => update('monoFont', 'consolas')}
+              type="button"
+            >
+              <span class="indicator">{draft.monoFont === 'consolas' ? '[x]' : '[ ]'}</span>
+              <span>Consolas</span>
+            </button>
+          </div>
         </div>
 
         <!-- Section: Font Size -->
         <div class="settings-group">
-          <div class="group-label">
-            <span class="label-text">Base Font Size</span>
+          <div class="group-header">
+            <span class="group-name">Font Size</span>
+            <span class="value-badge">{draft.fontSize}px</span>
           </div>
-          <div class="stepper-wrapper">
+          <div class="stepper-row">
+            <button
+              class="stepper-btn"
+              onclick={() => update('fontSize', Math.max(10, draft.fontSize - 1))}
+              type="button"
+            >
+              [-]
+            </button>
             <input
               type="range"
-              min="12"
+              min="11"
               max="24"
               step="1"
               value={draft.fontSize}
               oninput={(e) => update('fontSize', Number(e.currentTarget.value))}
-              class="range-input"
+              class="tui-range"
             />
-            <span class="range-val">{draft.fontSize}px</span>
+            <button
+              class="stepper-btn"
+              onclick={() => update('fontSize', Math.min(32, draft.fontSize + 1))}
+              type="button"
+            >
+              [+]
+            </button>
           </div>
         </div>
 
-        <!-- Section: Line Numbers -->
-        <div class="settings-group switch-row">
-          <div class="group-label">
-            <span class="label-icon"><Hash size={15} /></span>
-            <div>
-              <span class="label-text">Line Numbers</span>
-              <span class="sub-desc">Display line numbering along editor gutter</span>
-            </div>
+        <!-- Section: Line Numbers & Vim -->
+        <div class="tui-toggle-row">
+          <div class="toggle-item">
+            <button
+              class="tui-option-btn full-width"
+              class:selected={draft.lineNumbers}
+              onclick={() => update('lineNumbers', !draft.lineNumbers)}
+              type="button"
+            >
+              <span class="indicator">{draft.lineNumbers ? '[x]' : '[ ]'}</span>
+              <span>Line Numbers</span>
+            </button>
           </div>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              checked={draft.lineNumbers}
-              onchange={(e) => update('lineNumbers', e.currentTarget.checked)}
-            />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <!-- Section: Vim Mode -->
-        <div class="settings-group switch-row">
-          <div class="group-label">
-            <span class="label-icon"><Terminal size={15} /></span>
-            <div>
-              <span class="label-text">Vim Keybindings</span>
-              <span class="sub-desc">Enable standard modal Vim navigation</span>
-            </div>
+          <div class="toggle-item">
+            <button
+              class="tui-option-btn full-width"
+              class:selected={draft.vimMode}
+              onclick={() => update('vimMode', !draft.vimMode)}
+              type="button"
+            >
+              <span class="indicator">{draft.vimMode ? '[x]' : '[ ]'}</span>
+              <span>Vim Navigation</span>
+            </button>
           </div>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              checked={draft.vimMode}
-              onchange={(e) => update('vimMode', e.currentTarget.checked)}
-            />
-            <span class="slider"></span>
-          </label>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="done-btn" onclick={onClose} type="button">Done</button>
+        <button class="tui-btn-done" onclick={onClose} type="button">
+          [ done ]
+        </button>
       </div>
     </div>
   </div>
@@ -195,27 +245,24 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 200;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.15s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    z-index: 1000;
+    user-select: none;
   }
 
   .settings-modal {
-    width: 440px;
-    max-width: 90vw;
-    background-color: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    border-radius: 0px;
+    width: 480px;
+    max-width: 95vw;
+    font-family: var(--font-mono);
+    color: var(--text-main);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -223,226 +270,183 @@
 
   .modal-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-app);
   }
 
-  .header-title h3 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    color: #f4f4f5;
-  }
-
-  .header-sub {
+  .header-title {
     font-size: 12px;
-    color: #71717a;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
 
-  .close-btn {
+  .tui-bracket {
+    color: var(--text-muted);
+  }
+
+  .tui-label {
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .tui-btn-close {
     background: transparent;
-    border: none;
-    color: #71717a;
-    padding: 4px;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 2px 6px;
     cursor: pointer;
+    border-radius: 0px;
     display: flex;
     align-items: center;
-    justify-content: center;
   }
 
-  .close-btn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
+  .tui-btn-close:hover {
+    background-color: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
   }
 
   .modal-body {
-    padding: 16px 20px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    max-height: 65vh;
+    gap: 14px;
+    max-height: 75vh;
     overflow-y: auto;
   }
 
   .settings-group {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .switch-row {
+  .group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .group-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .value-badge {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .tui-btn-group {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tui-btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .tui-toggle-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
     padding-top: 4px;
   }
 
-  .group-label {
+  .tui-option-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-
-  .label-icon {
-    color: #38bdf8;
-    display: flex;
-    align-items: center;
-  }
-
-  .label-text {
-    font-size: 13px;
-    font-weight: 500;
-    color: #e4e4e7;
-    display: block;
-  }
-
-  .sub-desc {
-    font-size: 11px;
-    color: #71717a;
-    display: block;
-    margin-top: 1px;
-  }
-
-  /* Segmented control */
-  .segmented-control {
-    display: flex;
-    background-color: #121215;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    padding: 2px;
-    gap: 2px;
-  }
-
-  .seg-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: transparent;
-    border: none;
-    color: #a1a1aa;
-    font-size: 12px;
-    font-family: inherit;
-    padding: 5px 12px;
-    border-radius: 4px;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-family: var(--font-mono);
+    color: var(--text-main);
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 0px;
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    text-align: left;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
   }
 
-  .seg-btn.active {
-    background-color: #27272a;
-    color: #ffffff;
-    font-weight: 500;
+  .full-width {
+    width: 100%;
   }
 
-  /* Select */
-  .settings-select {
-    background-color: #121215;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
-    font-size: 12px;
-    font-family: inherit;
-    padding: 6px 12px;
-    border-radius: 6px;
-    outline: none;
-    cursor: pointer;
-    min-width: 140px;
+  .tui-option-btn:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent);
   }
 
-  .settings-select:focus {
-    border-color: rgba(56, 189, 248, 0.4);
+  .tui-option-btn.selected {
+    border-color: var(--accent);
+    color: var(--text-bright);
+    background-color: var(--accent-subtle);
   }
 
-  /* Range stepper */
-  .stepper-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .range-input {
-    accent-color: #38bdf8;
-    cursor: pointer;
-    width: 110px;
-  }
-
-  .range-val {
-    font-size: 12px;
-    color: #a1a1aa;
-    font-family: monospace;
-    min-width: 32px;
-  }
-
-  /* Toggle switch */
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 36px;
-    height: 20px;
+  .indicator {
+    font-weight: 700;
+    color: var(--accent);
     flex-shrink: 0;
   }
 
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+  .stepper-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--bg-app);
+    padding: 4px 8px;
+    border: 1px solid var(--border);
   }
 
-  .slider {
-    position: absolute;
+  .stepper-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 700;
     cursor: pointer;
-    inset: 0;
-    background-color: #27272a;
-    border-radius: 20px;
-    transition: 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 12px;
+    padding: 2px 4px;
   }
 
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 14px;
-    width: 14px;
-    left: 2px;
-    bottom: 2px;
-    background-color: #a1a1aa;
-    border-radius: 50%;
-    transition: 0.2s;
+  .tui-range {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
   }
 
-  input:checked + .slider {
-    background-color: #0284c7;
-    border-color: #38bdf8;
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(16px);
-    background-color: #ffffff;
-  }
-
-  /* Footer */
   .modal-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    background-color: var(--bg-app);
     display: flex;
     justify-content: flex-end;
-    padding: 12px 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background-color: #141416;
   }
 
-  .done-btn {
-    background-color: #38bdf8;
+  .tui-btn-done {
+    background-color: var(--accent);
     color: #09090b;
-    border: none;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: inherit;
-    padding: 6px 16px;
-    border-radius: 6px;
+    border: 1px solid var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 14px;
     cursor: pointer;
-    transition: opacity 0.12s ease;
+    border-radius: 0px;
+    transition: background-color 0.1s ease;
   }
 
-  .done-btn:hover {
-    opacity: 0.9;
+  .tui-btn-done:hover {
+    background-color: var(--accent-hover);
   }
 </style>
