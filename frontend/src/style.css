@@ -1,26 +1,294 @@
-html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
-    color: white;
+:root {
+  --bg-main: #18181b;
+  --bg-subtle: #202023;
+  --bg-tab: #141416;
+  --bg-tab-active: #18181b;
+  --border-color: #27272a;
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --dirty: #f59e0b;
 }
 
-body {
-    margin: 0;
-    color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+* {
+  box-sizing: border-box;
 }
 
-@font-face {
-    font-family: "Nunito";
-    font-style: normal;
-    font-weight: 400;
-    src: local(""),
-    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
 }
 
 #app {
-    height: 100vh;
-    text-align: center;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Tab Bar */
+.tab-bar-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tab);
+  border-bottom: 1px solid var(--border-color);
+  height: 38px;
+  min-height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.tab-bar-container::-webkit-scrollbar {
+  height: 0px;
+}
+
+.tab-list {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  flex: 1;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  background-color: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  border-right: 1px solid var(--border-color);
+  max-width: 200px;
+  min-width: 120px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.tab-item:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+}
+
+.tab-item.active {
+  background-color: var(--bg-tab-active);
+  color: #fff;
+  border-bottom: 2px solid var(--accent);
+  font-weight: 500;
+}
+
+.tab-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-dirty-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--dirty);
+}
+
+.tab-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.tab-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.tab-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+}
+
+.tab-add-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 12px;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* Editor Host */
+.editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-main);
+  user-select: text;
+}
+
+.cm-editor-wrapper {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Status Bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 26px;
+  min-height: 26px;
+  background-color: var(--bg-tab);
+  border-top: 1px solid var(--border-color);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: rgba(56, 189, 248, 0.12);
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.badge:hover {
+  background-color: rgba(56, 189, 248, 0.22);
+}
+
+/* Modal for Unsaved Changes */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-card {
+  background-color: #202024;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  padding: 20px 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-secondary {
+  background-color: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+
+.btn-secondary:hover {
+  background-color: #3f3f46;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+.btn-primary {
+  background-color: #0284c7;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: #0369a1;
 }
