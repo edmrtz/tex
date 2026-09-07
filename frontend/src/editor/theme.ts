@@ -98,15 +98,49 @@ export const editorThemeDark = EditorView.theme({
   '&.cm-focused': {
     outline: 'none',
   },
+  '@keyframes cm-blink': {
+    '0%, 40%': { opacity: '1' },
+    '55%': { opacity: '0' },
+    '85%': { opacity: '0' },
+    '100%': { opacity: '1' },
+  },
+  '@keyframes cm-blink2': {
+    '0%, 40%': { opacity: '1' },
+    '55%': { opacity: '0' },
+    '85%': { opacity: '0' },
+    '100%': { opacity: '1' },
+  },
+  '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
+    animation: 'cm-blink 1.05s ease-in-out infinite',
+  },
+  '.cm-cursorLayer': {
+    pointerEvents: 'none',
+  },
   '.cm-cursor, .cm-dropCursor': {
     borderLeftColor: 'var(--accent, #38bdf8)',
     borderLeftWidth: '2px',
+    marginLeft: '-1px',
+    borderRadius: '1px',
+  },
+  '.cm-cursor-primary': {
+    borderLeftColor: 'var(--accent, #38bdf8)',
+  },
+  '.cm-cursor-secondary': {
+    borderLeftColor: 'var(--accent, #38bdf8)',
+    opacity: '0.6',
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
+      animation: 'none !important',
+      opacity: '1 !important',
+    },
   },
   '.cm-selectionBackground, ::selection': {
     backgroundColor: 'rgba(56, 189, 248, 0.25) !important',
   },
   '.cm-activeLine': {
     backgroundColor: 'rgba(255, 255, 255, 0.025)',
+    transition: 'background-color 0.15s ease',
   },
   '.cm-scroller': {
     overflow: 'auto',
@@ -275,6 +309,10 @@ export const editorThemeDark = EditorView.theme({
     accentColor: 'var(--accent, #38bdf8)',
     transform: 'scale(1.15)',
     verticalAlign: 'middle',
+    transition: 'transform 0.12s ease',
+  },
+  '.cm-task-checkbox:active': {
+    transform: 'scale(0.95)',
   },
   // Math containers
   '.cm-math-container': {
@@ -363,15 +401,49 @@ export const editorThemeLight = EditorView.theme({
   '&.cm-focused': {
     outline: 'none',
   },
+  '@keyframes cm-blink': {
+    '0%, 40%': { opacity: '1' },
+    '55%': { opacity: '0' },
+    '85%': { opacity: '0' },
+    '100%': { opacity: '1' },
+  },
+  '@keyframes cm-blink2': {
+    '0%, 40%': { opacity: '1' },
+    '55%': { opacity: '0' },
+    '85%': { opacity: '0' },
+    '100%': { opacity: '1' },
+  },
+  '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
+    animation: 'cm-blink 1.05s ease-in-out infinite',
+  },
+  '.cm-cursorLayer': {
+    pointerEvents: 'none',
+  },
   '.cm-cursor, .cm-dropCursor': {
     borderLeftColor: 'var(--accent, #0284c7)',
     borderLeftWidth: '2px',
+    marginLeft: '-1px',
+    borderRadius: '1px',
+  },
+  '.cm-cursor-primary': {
+    borderLeftColor: 'var(--accent, #0284c7)',
+  },
+  '.cm-cursor-secondary': {
+    borderLeftColor: 'var(--accent, #0284c7)',
+    opacity: '0.6',
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
+      animation: 'none !important',
+      opacity: '1 !important',
+    },
   },
   '.cm-selectionBackground, ::selection': {
     backgroundColor: 'rgba(2, 132, 199, 0.2) !important',
   },
   '.cm-activeLine': {
     backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    transition: 'background-color 0.15s ease',
   },
   '.cm-scroller': {
     overflow: 'auto',
@@ -540,6 +612,10 @@ export const editorThemeLight = EditorView.theme({
     accentColor: 'var(--accent, #0284c7)',
     transform: 'scale(1.15)',
     verticalAlign: 'middle',
+    transition: 'transform 0.12s ease',
+  },
+  '.cm-task-checkbox:active': {
+    transform: 'scale(0.95)',
   },
   // Math containers
   '.cm-math-container': {

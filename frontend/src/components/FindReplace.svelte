@@ -314,17 +314,18 @@
     max-width: 440px;
     user-select: none;
     font-family: var(--font-mono);
-    animation: fadeIn 0.1s ease-out;
+    animation: findPanelSlide 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
   }
 
-  @keyframes fadeIn {
+  @keyframes findPanelSlide {
     from {
       opacity: 0;
-      transform: translateY(-3px);
+      transform: translateY(-6px) scale(0.98);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
   }
 
@@ -487,5 +488,14 @@
   .btn-text:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .find-replace-container {
+      animation: none !important;
+    }
+    :global(.rotate-down) {
+      transition: none !important;
+    }
   }
 </style>

@@ -299,6 +299,7 @@
     justify-content: center;
     z-index: 1000;
     user-select: none;
+    animation: settingsBackdropFade 0.15s ease-out;
   }
 
   .settings-modal {
@@ -313,6 +314,28 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: settingsModalPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+  }
+
+  @keyframes settingsBackdropFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes settingsModalPop {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .modal-header {
@@ -419,7 +442,11 @@
     border-radius: 0px;
     cursor: pointer;
     text-align: left;
-    transition: background-color 0.1s ease, border-color 0.1s ease;
+    transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  }
+
+  .tui-option-btn:active {
+    transform: scale(0.98);
   }
 
   .full-width {
@@ -461,6 +488,11 @@
     cursor: pointer;
     font-size: 12px;
     padding: 2px 4px;
+    transition: transform 0.08s ease, color 0.1s ease;
+  }
+
+  .stepper-btn:active {
+    transform: scale(0.92);
   }
 
   .tui-range {
@@ -487,10 +519,26 @@
     padding: 4px 14px;
     cursor: pointer;
     border-radius: 0px;
-    transition: background-color 0.1s ease;
+    transition: background-color 0.12s ease, transform 0.08s ease;
   }
 
   .tui-btn-done:hover {
     background-color: var(--accent-hover);
+  }
+
+  .tui-btn-done:active {
+    transform: scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-backdrop,
+    .settings-modal {
+      animation: none !important;
+    }
+    .tui-option-btn,
+    .tui-btn-done,
+    .stepper-btn {
+      transition: none !important;
+    }
   }
 </style>

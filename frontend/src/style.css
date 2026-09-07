@@ -319,6 +319,7 @@ html, body {
   align-items: center;
   justify-content: center;
   z-index: 999;
+  animation: modalOverlayFade 0.15s ease-out;
 }
 
 .modal-card {
@@ -330,6 +331,28 @@ html, body {
   width: 90%;
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
   font-family: var(--font-mono);
+  animation: modalCardScale 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+@keyframes modalOverlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalCardScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-title {
@@ -361,6 +384,14 @@ html, body {
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border);
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+}
+
+.btn:active,
+.icon-btn:active,
+.mode-badge-btn:active,
+.tui-win-btn:active {
+  transform: scale(0.97);
 }
 
 .btn-secondary {
@@ -392,4 +423,92 @@ html, body {
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
+}
+
+/* Dirty Dot Subtle Pulse Animation */
+@keyframes dirtyPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.8;
+  }
+}
+
+.tui-dirty-dot,
+.dirty-badge,
+.document-tab-dirty {
+  display: inline-block;
+  animation: dirtyPulse 2.4s ease-in-out infinite;
+}
+
+/* CodeMirror Cursor Layer & Smooth Blinking Keyframes */
+.cm-cursorLayer {
+  pointer-events: none;
+}
+
+.cm-focused > .cm-scroller > .cm-cursorLayer {
+  animation: cm-blink 1.05s ease-in-out infinite;
+}
+
+@keyframes cm-blink {
+  0%, 40% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0;
+  }
+  85% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes cm-blink2 {
+  0%, 40% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0;
+  }
+  85% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.cm-cursor,
+.cm-dropCursor {
+  border-left-width: 2px !important;
+  border-left-style: solid !important;
+  border-left-color: var(--accent) !important;
+  margin-left: -1px;
+  border-radius: 1px;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .cm-focused > .cm-scroller > .cm-cursorLayer {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .tui-dirty-dot,
+  .dirty-badge,
+  .document-tab-dirty {
+    animation: none !important;
+  }
 }

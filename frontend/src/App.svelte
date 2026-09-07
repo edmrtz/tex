@@ -1176,6 +1176,19 @@
     user-select: none;
     z-index: 1;
     pointer-events: auto;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+    animation: tabFadeIn 0.15s ease-out;
+  }
+
+  @keyframes tabFadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   }
 
   .document-tab-title {
@@ -1275,6 +1288,18 @@
     align-items: center;
     gap: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: statsFadeIn 0.2s ease-out;
+  }
+
+  @keyframes statsFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .stat-sep {
@@ -1313,6 +1338,7 @@
     justify-content: center;
     z-index: 1000;
     backdrop-filter: blur(2px);
+    animation: appModalOverlayFade 0.15s ease-out;
   }
 
   .modal-card {
@@ -1324,6 +1350,28 @@
     max-width: 90%;
     box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
     font-family: var(--font-mono);
+    animation: appModalCardScale 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+  }
+
+  @keyframes appModalOverlayFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes appModalCardScale {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   .modal-title {
@@ -1354,6 +1402,13 @@
     font-weight: 600;
     cursor: pointer;
     border: 1px solid var(--border);
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  }
+
+  .btn:active,
+  .icon-btn:active,
+  .mode-badge-btn:active {
+    transform: scale(0.97);
   }
 
   .btn-secondary {
@@ -1383,5 +1438,19 @@
 
   .btn-primary:hover {
     background-color: var(--accent-hover);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-overlay,
+    .modal-card,
+    .stats-badge,
+    .document-tab-center {
+      animation: none !important;
+    }
+    .btn,
+    .icon-btn,
+    .mode-badge-btn {
+      transition: none !important;
+    }
   }
 </style>

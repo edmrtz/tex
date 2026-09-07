@@ -8,6 +8,7 @@ import {
   keymap,
   highlightActiveLine,
   dropCursor,
+  drawSelection,
   lineNumbers,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
@@ -200,7 +201,33 @@ export function createMarkdownEditor(
     return false;
   }
 
+  function handleBackspace(v: EditorView): boolean {
+    const { state } = v;
+    const { main } = state.selection;
+    if (!main.empty) return false;
+
+    const line = state.doc.lineAt(main.head);
+    const text = line.text;
+
+    // If the line consists only of a heading prefix (e.g. "# ", "## ", etc.)
+    // and cursor is right after it, Backspace clears the entire prefix
+    // immediately resetting to normal line
+    const headingPrefixMatch = text.match(/^(#{1,6}\s)$/);
+    if (headingPrefixMatch && main.head === line.from + headingPrefixMatch[1].length) {
+      v.dispatch({
+        changes: { from: line.from, to: line.from + headingPrefixMatch[1].length, insert: '' },
+      });
+      return true;
+    }
+
+    return false;
+  }
+
   const customKeymap = keymap.of([
+    {
+      key: 'Backspace',
+      run: (v) => handleBackspace(v),
+    },
     {
       key: 'Enter',
       run: (v) => handleListEnter(v),
@@ -287,6 +314,7 @@ export function createMarkdownEditor(
     extensions: [
       history(),
       dropCursor(),
+      drawSelection({ cursorBlinkRate: 1050 }),
       highlightActiveLine(),
       highlightSelectionMatches(),
       search({ top: true }),

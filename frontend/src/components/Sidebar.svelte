@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RecentItem } from '../types';
+  import { slide } from 'svelte/transition';
   import {
     Plus,
     FolderOpen,
@@ -248,7 +249,7 @@
 />
 
 {#if isOpen}
-  <aside class="sidebar">
+  <aside class="sidebar" transition:slide={{ axis: 'x', duration: 160 }}>
     <!-- Header -->
     <div class="sidebar-header">
       <div class="workspace-meta">
@@ -594,7 +595,6 @@
 <style>
   .sidebar {
     width: 250px;
-    min-width: 250px;
     height: 100%;
     background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border);
@@ -603,6 +603,8 @@
     user-select: none;
     z-index: 10;
     font-family: var(--font-mono);
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
   /* Header */
@@ -982,6 +984,19 @@
     min-width: 140px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
     font-family: var(--font-mono);
+    animation: contextMenuPop 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top left;
+  }
+
+  @keyframes contextMenuPop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .context-menu-header {
@@ -1153,5 +1168,11 @@
   .btn-primary:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-context-menu {
+      animation: none !important;
+    }
   }
 </style>

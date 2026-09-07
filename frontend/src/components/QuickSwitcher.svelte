@@ -148,6 +148,7 @@
     padding-top: 15vh;
     z-index: 3000;
     backdrop-filter: blur(3px);
+    animation: switcherOverlayFade 0.15s ease-out;
   }
 
   .quick-switcher-card {
@@ -161,6 +162,28 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: switcherCardPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+  }
+
+  @keyframes switcherOverlayFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes switcherCardPop {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .search-box {
@@ -212,7 +235,11 @@
     text-align: left;
     cursor: pointer;
     font-size: 12px;
-    transition: background-color 0.1s ease;
+    transition: background-color 0.1s ease, color 0.1s ease, transform 0.08s ease;
+  }
+
+  .result-item:active {
+    transform: scale(0.99);
   }
 
   .result-item.selected {
@@ -264,5 +291,15 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .quick-switcher-overlay,
+    .quick-switcher-card {
+      animation: none !important;
+    }
+    .result-item {
+      transition: none !important;
+    }
   }
 </style>

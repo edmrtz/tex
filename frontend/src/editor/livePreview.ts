@@ -265,6 +265,14 @@ function computeDecorations(state: EditorState): DecorationSet {
       if (headingMatch) {
         const level = headingMatch[1];
         const line = state.doc.lineAt(nodeFrom);
+        const lineText = state.doc.sliceString(line.from, line.to);
+
+        // Do not style lines that only consist of hash marks without content or space
+        // (e.g. user backspaced to '#' or typed a single '#')
+        if (/^#{1,6}$/.test(lineText.trim())) {
+          return;
+        }
+
         const hasCursor = cursorOnSameLine(state, line.from, line.to);
 
         // Add styling to entire heading line
@@ -274,12 +282,11 @@ function computeDecorations(state: EditorState): DecorationSet {
 
         // Hide the '#' marks when cursor is elsewhere
         if (!hasCursor) {
-          const lineText = state.doc.sliceString(nodeFrom, nodeTo);
           const hashPrefix = lineText.match(/^#{1,6}\s*/);
           if (hashPrefix) {
             addReplacement(
-              nodeFrom,
-              nodeFrom + hashPrefix[0].length,
+              line.from,
+              line.from + hashPrefix[0].length,
               Decoration.replace({})
             );
           }
