@@ -1,68 +1,59 @@
 <script lang="ts">
-  import type { FileTreeItem } from '../types';
+  import type { RecentItem } from '../types';
   import {
     Plus,
     FolderOpen,
-    Folder,
     FileText,
     Search,
     X,
     PanelLeftClose,
-    RefreshCw,
     Settings as SettingsIcon,
     Trash2,
     Edit2,
+    Download,
   } from '@lucide/svelte';
-  import FileTreeNode from './FileTreeNode.svelte';
 
   let {
     isOpen,
-    activePath,
-    currentFolder,
-    folderTree,
-    onSelectFile,
+    activeId,
+    recentItems,
+    onSelectNote,
+    onCloseNote,
     onNewNote,
     onOpenFile,
     onOpenFolder,
-    onRefreshFolder,
     onToggleSidebar,
+    onFind,
+    onExport,
     onOpenSettings,
-    onCreateFileInFolder,
-    onDeleteFile,
-    onMoveFile,
     onRenameFile,
+    onDeleteFile,
   }: {
     isOpen: boolean;
-    activePath: string | null;
-    currentFolder: string;
-    folderTree: FileTreeItem[];
-    onSelectFile: (path: string) => void;
+    activeId: string;
+    recentItems: RecentItem[];
+    onSelectNote: (item: RecentItem) => void;
+    onCloseNote?: (item: RecentItem, e: MouseEvent) => void;
     onNewNote: () => void;
     onOpenFile: () => void;
-    onOpenFolder: () => void;
-    onRefreshFolder: () => void;
+    onOpenFolder?: () => void;
     onToggleSidebar: () => void;
-    onOpenSettings?: () => void;
-    onCreateFileInFolder?: (folderPath: string, fileName: string) => void;
-    onDeleteFile?: (filePath: string) => void;
-    onMoveFile?: (sourcePath: string, targetDir: string) => void;
+    onFind: () => void;
+    onExport: () => void;
+    onOpenSettings: () => void;
     onRenameFile?: (oldPath: string, newName: string) => void;
+    onDeleteFile?: (filePath: string) => void;
   } = $props();
 
   let searchQuery = $state('');
-  let contextMenu = $state<{ x: number; y: number; item: FileTreeItem } | null>(null);
-  let showNewFileModal = $state<{ folderPath: string } | null>(null);
-  let showDeleteModal = $state<FileTreeItem | null>(null);
-  let showRenameModal = $state<FileTreeItem | null>(null);
-  let newFileName = $state('');
-  let newFileInputEl = $state<HTMLInputElement | null>(null);
+  let contextMenu = $state<{ x: number; y: number; item: RecentItem } | null>(null);
+  let showDeleteModal = $state<RecentItem | null>(null);
+  let showRenameModal = $state<RecentItem | null>(null);
   let renameName = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
-  let draggedItem = $state<FileTreeItem | null>(null);
-  let isRootDragOver = $state(false);
-
-  function handleNodeContextMenu(e: MouseEvent, item: FileTreeItem) {
+  function handleItemContextMenu(e: MouseEvent, item: RecentItem) {
+    if (!item.path) return;
     e.preventDefault();
     e.stopPropagation();
     contextMenu = {
@@ -72,44 +63,9 @@
     };
   }
 
-  function handleWorkspaceHeaderContextMenu(e: MouseEvent) {
-    if (!currentFolder) return;
-    e.preventDefault();
-    e.stopPropagation();
-    contextMenu = {
-      x: Math.min(e.clientX, window.innerWidth - 170),
-      y: Math.min(e.clientY, window.innerHeight - 130),
-      item: {
-        path: currentFolder,
-        name: getFolderDisplayName(currentFolder),
-        isDir: true,
-        modTime: 0,
-        size: 0,
-      },
-    };
-  }
-
-  function openNewFilePrompt(folderPath: string) {
+  function promptRename(item: RecentItem) {
     contextMenu = null;
-    newFileName = '';
-    showNewFileModal = { folderPath };
-    setTimeout(() => newFileInputEl?.focus(), 50);
-  }
-
-  function promptDelete(item: FileTreeItem) {
-    contextMenu = null;
-    showDeleteModal = item;
-  }
-
-  function confirmDelete() {
-    if (!showDeleteModal) return;
-    onDeleteFile?.(showDeleteModal.path);
-    showDeleteModal = null;
-  }
-
-  function promptRename(item: FileTreeItem) {
-    contextMenu = null;
-    renameName = item.name;
+    renameName = item.title;
     showRenameModal = item;
     setTimeout(() => {
       renameInputEl?.focus();
@@ -119,67 +75,44 @@
 
   function submitRename(e?: Event) {
     if (e) e.preventDefault();
-    if (!showRenameModal || !renameName.trim()) return;
+    if (!showRenameModal || !renameName.trim() || !showRenameModal.path) return;
     if (onRenameFile) {
       onRenameFile(showRenameModal.path, renameName.trim());
     }
     showRenameModal = null;
   }
 
-  function submitNewFile(e?: Event) {
-    if (e) e.preventDefault();
-    if (!showNewFileModal || !newFileName.trim()) return;
-    if (onCreateFileInFolder) {
-      onCreateFileInFolder(showNewFileModal.folderPath, newFileName.trim());
+  function promptDelete(item: RecentItem) {
+    contextMenu = null;
+    showDeleteModal = item;
+  }
+
+  function confirmDelete() {
+    if (!showDeleteModal || !showDeleteModal.path) return;
+    onDeleteFile?.(showDeleteModal.path);
+    showDeleteModal = null;
+  }
+
+  function getDisplayPath(fullPath: string | null): string {
+    if (!fullPath) return 'untitled';
+    const parts = fullPath.replace(/[/\\]+$/, '').split(/[/\\]/);
+    if (parts.length > 2) {
+      return `.../${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
     }
-    showNewFileModal = null;
+    return fullPath;
   }
 
-  function handleDragStartNode(e: DragEvent, item: FileTreeItem) {
-    draggedItem = item;
-  }
-
-  function handleDragEndNode() {
-    draggedItem = null;
-    isRootDragOver = false;
-  }
-
-  function handleDropNode(targetDir: string) {
-    if (draggedItem && draggedItem.path !== targetDir) {
-      onMoveFile?.(draggedItem.path, targetDir);
-    }
-    draggedItem = null;
-    isRootDragOver = false;
-  }
-
-  function getFolderDisplayName(path: string): string {
-    if (!path) return 'Workspace';
-    const parts = path.replace(/[/\\]+$/, '').split(/[/\\]/);
-    return parts[parts.length - 1] || 'Workspace';
-  }
-
-  function filterTree(items: FileTreeItem[], query: string): FileTreeItem[] {
-    if (!query) return items;
+  function filterRecent(items: RecentItem[], query: string): RecentItem[] {
+    if (!query.trim()) return items;
     const q = query.toLowerCase();
-    const result: FileTreeItem[] = [];
-
-    for (const item of items) {
-      if (item.isDir) {
-        const filteredChildren = item.children ? filterTree(item.children, query) : [];
-        if (filteredChildren.length > 0 || item.name.toLowerCase().includes(q)) {
-          result.push({
-            ...item,
-            children: filteredChildren,
-          });
-        }
-      } else if (item.name.toLowerCase().includes(q)) {
-        result.push(item);
-      }
-    }
-    return result;
+    return items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        (item.path && item.path.toLowerCase().includes(q))
+    );
   }
 
-  const filteredTree = $derived(filterTree(folderTree, searchQuery.trim()));
+  const filteredItems = $derived(filterRecent(recentItems, searchQuery));
 </script>
 
 <svelte:window
@@ -187,7 +120,6 @@
   onkeydown={(e) => {
     if (e.key === 'Escape') {
       contextMenu = null;
-      showNewFileModal = null;
       showRenameModal = null;
       showDeleteModal = null;
     }
@@ -197,32 +129,10 @@
 {#if isOpen}
   <aside class="sidebar">
     <!-- Header -->
-    <div
-      class="sidebar-header"
-      class:drag-over={isRootDragOver}
-      oncontextmenu={handleWorkspaceHeaderContextMenu}
-      ondragover={(e) => {
-        if (draggedItem && currentFolder) {
-          e.preventDefault();
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-          isRootDragOver = true;
-        }
-      }}
-      ondragleave={() => { isRootDragOver = false; }}
-      ondrop={(e) => {
-        e.preventDefault();
-        isRootDragOver = false;
-        if (currentFolder) {
-          handleDropNode(currentFolder);
-        }
-      }}
-      title="Right-click for options (or drag files here to move to root)"
-    >
+    <div class="sidebar-header">
       <div class="workspace-meta">
         <span class="tui-bracket">[</span>
-        <span class="workspace-name" title={currentFolder}>
-          {getFolderDisplayName(currentFolder)}
-        </span>
+        <span class="sidebar-title">recent</span>
         <span class="tui-bracket">]</span>
       </div>
 
@@ -233,32 +143,24 @@
           onclick={onNewNote}
           type="button"
         >
-          <Plus size={16} />
+          <Plus size={15} />
         </button>
         <button
           class="action-btn"
-          title="Refresh Workspace"
-          onclick={onRefreshFolder}
+          title="Open File (Ctrl+O)"
+          onclick={onOpenFile}
           type="button"
         >
-          <RefreshCw size={14} />
+          <FileText size={14} />
         </button>
-        <button
-          class="action-btn"
-          title="Open Folder"
-          onclick={onOpenFolder}
-          type="button"
-        >
-          <FolderOpen size={16} />
-        </button>
-        {#if onOpenSettings}
+        {#if onOpenFolder}
           <button
             class="action-btn"
-            title="Preferences (Ctrl+,)"
-            onclick={onOpenSettings}
+            title="Open Folder"
+            onclick={onOpenFolder}
             type="button"
           >
-            <SettingsIcon size={15} />
+            <FolderOpen size={14} />
           </button>
         {/if}
         <button
@@ -267,7 +169,7 @@
           onclick={onToggleSidebar}
           type="button"
         >
-          <PanelLeftClose size={16} />
+          <PanelLeftClose size={15} />
         </button>
       </div>
     </div>
@@ -275,10 +177,10 @@
     <!-- Search Input -->
     <div class="sidebar-search">
       <div class="search-input-wrapper">
-        <Search size={14} class="search-icon" />
+        <Search size={13} class="search-icon" />
         <input
           type="text"
-          placeholder="Search files..."
+          placeholder="Search recent..."
           bind:value={searchQuery}
           class="search-input"
         />
@@ -294,60 +196,105 @@
       </div>
     </div>
 
-    <!-- Scrollable File Tree -->
+    <!-- Scrollable Recent Items List -->
     <div class="sidebar-content">
-      {#if !currentFolder}
-        <div class="folder-prompt">
-          <button class="btn-open-folder" onclick={onOpenFolder} type="button">
-            <FolderOpen size={15} />
-            <span>Open Folder...</span>
-          </button>
-        </div>
-      {:else if filteredTree.length === 0}
+      {#if filteredItems.length === 0}
         <div class="empty-state">
-          {searchQuery ? 'No matching markdown files' : 'No markdown files found'}
+          {#if searchQuery}
+            No matching recent notes
+          {:else}
+            No recent notes
+            <div class="empty-action">
+              <button class="btn-create-note" onclick={onNewNote} type="button">
+                <Plus size={13} />
+                <span>Create note</span>
+              </button>
+            </div>
+          {/if}
         </div>
       {:else}
-        <div
-          class="tree-list"
-          class:drag-over={isRootDragOver}
-          ondragover={(e) => {
-            if (draggedItem && currentFolder) {
-              e.preventDefault();
-              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-              isRootDragOver = true;
-            }
-          }}
-          ondragleave={() => { isRootDragOver = false; }}
-          ondrop={(e) => {
-            e.preventDefault();
-            isRootDragOver = false;
-            if (currentFolder) {
-              handleDropNode(currentFolder);
-            }
-          }}
-        >
-          {#each filteredTree as item (item.path)}
-            <FileTreeNode
-              {item}
-              {activePath}
-              {onSelectFile}
-              onContextMenu={handleNodeContextMenu}
-              onDragStartNode={handleDragStartNode}
-              onDragEndNode={handleDragEndNode}
-              onDropNode={handleDropNode}
-            />
+        <div class="recent-list">
+          {#each filteredItems as item (item.id || item.path || item.title)}
+            {@const isSelected = item.id ? item.id === activeId : (item.path && item.path === activeId)}
+            <div
+              class="recent-item"
+              class:active={isSelected}
+              onclick={() => onSelectNote(item)}
+              oncontextmenu={(e) => handleItemContextMenu(e, item)}
+              role="button"
+              tabindex="0"
+              onkeydown={(e) => { if (e.key === 'Enter') onSelectNote(item); }}
+            >
+              <div class="recent-item-main">
+                <div class="recent-item-header">
+                  <FileText size={13} class="recent-file-icon" />
+                  <span class="recent-item-title" title={item.path || item.title}>
+                    {item.title}
+                  </span>
+                  {#if item.isDirty}
+                    <span class="dirty-indicator" title="Unsaved changes">●</span>
+                  {/if}
+                </div>
+                {#if item.path}
+                  <div class="recent-item-path" title={item.path}>
+                    {getDisplayPath(item.path)}
+                  </div>
+                {:else if item.preview}
+                  <div class="recent-item-preview">
+                    {item.preview}
+                  </div>
+                {/if}
+              </div>
+
+              {#if onCloseNote}
+                <button
+                  class="recent-item-close"
+                  title="Close note"
+                  onclick={(e) => onCloseNote(item, e)}
+                  type="button"
+                >
+                  <X size={12} />
+                </button>
+              {/if}
+            </div>
           {/each}
         </div>
       {/if}
     </div>
 
-    <!-- Footer Quick Action -->
+    <!-- Footer with features: settings, export, find -->
     <div class="sidebar-footer">
-      <button class="footer-btn" onclick={onOpenFile} type="button">
-        <FileText size={13} />
-        <span>Open Other File...</span>
-        <span class="shortcut-tag">Ctrl+O</span>
+      <button
+        class="footer-btn"
+        onclick={onFind}
+        title="Find & Quick Switcher (Ctrl+P)"
+        type="button"
+      >
+        <Search size={13} />
+        <span>[find]</span>
+        <span class="shortcut-tag">Ctrl+P</span>
+      </button>
+
+      <button
+        class="footer-btn"
+        onclick={onExport}
+        title="Export Document (Ctrl+Shift+E)"
+        type="button"
+      >
+        <Download size={13} />
+        <span>[export]</span>
+        <span class="shortcut-tag">Ctrl+Shift+E</span>
+      </button>
+
+      <button
+        class="footer-btn"
+        onclick={onOpenSettings}
+        title="Preferences (Ctrl+,)"
+        type="button"
+      >
+        <SettingsIcon size={13} />
+        <span>[settings]</span>
+        <span class="shortcut-tag">Ctrl+,</span>
       </button>
     </div>
   </aside>
@@ -361,35 +308,10 @@
   >
     <div class="context-menu-header">
       <span class="tui-bracket">[</span>
-      <span class="context-menu-title">{contextMenu.item.name}</span>
+      <span class="context-menu-title">{contextMenu.item.title}</span>
       <span class="tui-bracket">]</span>
     </div>
-    {#if contextMenu.item.isDir}
-      <button
-        class="context-menu-item"
-        onclick={() => openNewFilePrompt(contextMenu!.item.path)}
-        type="button"
-      >
-        <Plus size={13} />
-        <span>[+ new file]</span>
-      </button>
-      <button
-        class="context-menu-item"
-        onclick={() => promptRename(contextMenu!.item)}
-        type="button"
-      >
-        <Edit2 size={13} />
-        <span>[~ rename folder]</span>
-      </button>
-      <button
-        class="context-menu-item danger"
-        onclick={() => promptDelete(contextMenu!.item)}
-        type="button"
-      >
-        <Trash2 size={13} />
-        <span>[- delete folder]</span>
-      </button>
-    {:else}
+    {#if contextMenu.item.path}
       <button
         class="context-menu-item"
         onclick={() => promptRename(contextMenu!.item)}
@@ -405,6 +327,20 @@
       >
         <Trash2 size={13} />
         <span>[- delete file]</span>
+      </button>
+    {/if}
+    {#if onCloseNote}
+      <button
+        class="context-menu-item"
+        onclick={(e) => {
+          const itm = contextMenu!.item;
+          contextMenu = null;
+          onCloseNote(itm, e);
+        }}
+        type="button"
+      >
+        <X size={13} />
+        <span>[× close note]</span>
       </button>
     {/if}
   </div>
@@ -427,7 +363,7 @@
     >
       <div class="modal-title">
         <span class="tui-bracket">[</span>
-        <span>rename {showRenameModal.isDir ? 'folder' : 'file'}</span>
+        <span>rename file</span>
         <span class="tui-bracket">]</span>
       </div>
       <form onsubmit={submitRename}>
@@ -451,61 +387,9 @@
           <button
             type="submit"
             class="btn btn-primary"
-            disabled={!renameName.trim() || renameName.trim() === showRenameModal.name}
+            disabled={!renameName.trim() || renameName.trim() === showRenameModal.title}
           >
             rename
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
-
-{#if showNewFileModal}
-  <div
-    class="modal-overlay"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    onclick={() => { showNewFileModal = null; }}
-    onkeydown={(e) => { if (e.key === 'Escape') showNewFileModal = null; }}
-  >
-    <div
-      class="modal-card"
-      role="document"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-    >
-      <div class="modal-title">
-        <span class="tui-bracket">[</span>
-        <span>new file in {getFolderDisplayName(showNewFileModal.folderPath)}</span>
-        <span class="tui-bracket">]</span>
-      </div>
-      <form onsubmit={submitNewFile}>
-        <div class="modal-input-row">
-          <input
-            bind:this={newFileInputEl}
-            type="text"
-            bind:value={newFileName}
-            placeholder="document.md"
-            class="tui-modal-input"
-            autofocus
-          />
-        </div>
-        <div class="modal-actions">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick={() => { showNewFileModal = null; }}
-          >
-            cancel
-          </button>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            disabled={!newFileName.trim()}
-          >
-            create
           </button>
         </div>
       </form>
@@ -530,11 +414,11 @@
     >
       <div class="modal-title danger-title">
         <span class="tui-bracket">[</span>
-        <span>delete {showDeleteModal.isDir ? 'folder' : 'file'}</span>
+        <span>delete file</span>
         <span class="tui-bracket">]</span>
       </div>
       <div class="modal-message">
-        Are you sure you want to delete <strong class="file-highlight">"{showDeleteModal.name}"</strong>?
+        Are you sure you want to delete <strong class="file-highlight">"{showDeleteModal.title}"</strong>?
         <div class="warning-text">This will remove it from disk.</div>
       </div>
       <div class="modal-actions">
@@ -593,13 +477,11 @@
     font-size: 11.5px;
   }
 
-  .workspace-name {
+  .sidebar-title {
     font-size: 11.5px;
     font-weight: 700;
-    color: var(--text-main);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--accent);
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
@@ -691,60 +573,162 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px 6px 16px;
-  }
-
-  .sidebar-content::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .sidebar-content::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 0px;
-  }
-
-  .tree-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .folder-prompt {
-    padding: 12px 6px;
-  }
-
-  .btn-open-folder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    padding: 8px 10px;
-    background-color: var(--bg-hover);
-    border: 1px dashed var(--border);
-    border-radius: 0px;
-    color: var(--text-muted);
-    font-size: 11.5px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
-  }
-
-  .btn-open-folder:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    padding: 6px;
   }
 
   .empty-state {
     font-size: 11px;
     color: var(--text-muted);
     font-style: italic;
-    padding: 16px 10px;
+    padding: 24px 10px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .empty-action {
+    display: flex;
+    justify-content: center;
+  }
+
+  .btn-create-note {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background-color: var(--bg-hover);
+    border: 1px dashed var(--border);
+    border-radius: 0px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: color 0.1s ease, border-color 0.1s ease;
+  }
+
+  .btn-create-note:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 0px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+    outline: none;
+    position: relative;
+  }
+
+  .recent-item:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--border-subtle);
+  }
+
+  .recent-item.active {
+    background-color: var(--bg-active);
+    border-color: var(--border-focus);
+  }
+
+  .recent-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .recent-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  :global(.recent-file-icon) {
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .recent-item.active :global(.recent-file-icon) {
+    color: var(--accent);
+  }
+
+  .recent-item-title {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .recent-item.active .recent-item-title {
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+
+  .dirty-indicator {
+    color: var(--dirty);
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  .recent-item-path,
+  .recent-item-preview {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-left: 19px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.8;
+  }
+
+  .recent-item-close {
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    border-radius: 0px;
+    transition: opacity 0.1s ease, color 0.1s ease, background-color 0.1s ease;
+  }
+
+  .recent-item:hover .recent-item-close {
+    opacity: 1;
+  }
+
+  .recent-item-close:hover {
+    color: var(--danger);
+    background-color: rgba(248, 113, 113, 0.15);
   }
 
   /* Footer */
   .sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     padding: 6px 8px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-sidebar);
@@ -763,7 +747,7 @@
     font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
   }
 
   .footer-btn:hover {
@@ -774,7 +758,7 @@
 
   .shortcut-tag {
     margin-left: auto;
-    font-size: 10px;
+    font-size: 9.5px;
     color: var(--text-muted);
     font-family: var(--font-mono);
   }
@@ -804,8 +788,8 @@
   }
 
   .context-menu-title {
-    font-weight: 700;
     color: var(--text-bright);
+    font-weight: 600;
   }
 
   .context-menu-item {
@@ -813,22 +797,33 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: 5px 8px;
-    background: transparent;
-    border: none;
-    color: var(--text-main);
+    padding: 4px 8px;
     font-size: 11px;
     font-family: var(--font-mono);
-    text-align: left;
+    color: var(--text-main);
+    background: transparent;
+    border: none;
+    border-radius: 0px;
     cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s ease;
   }
 
   .context-menu-item:hover {
     background-color: var(--bg-hover);
-    color: var(--accent);
+    color: var(--text-bright);
   }
 
-  /* Modal */
+  .context-menu-item.danger {
+    color: var(--danger);
+  }
+
+  .context-menu-item.danger:hover {
+    background-color: rgba(248, 113, 113, 0.15);
+    color: var(--danger);
+  }
+
+  /* Modals */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -836,7 +831,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2100;
+    z-index: 2500;
     backdrop-filter: blur(2px);
   }
 
@@ -852,10 +847,18 @@
   }
 
   .modal-title {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-bright);
     margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: uppercase;
+  }
+
+  .modal-title.danger-title {
+    color: var(--danger);
   }
 
   .modal-input-row {
@@ -868,26 +871,43 @@
     border: 1px solid var(--border);
     border-radius: 0px;
     color: var(--text-bright);
-    padding: 6px 8px;
-    font-size: 12px;
     font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 8px;
     outline: none;
   }
 
   .tui-modal-input:focus {
-    border-color: var(--accent);
+    border-color: var(--border-focus);
+  }
+
+  .modal-message {
+    font-size: 11.5px;
+    color: var(--text-main);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  .file-highlight {
+    color: var(--text-bright);
+  }
+
+  .warning-text {
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--danger);
   }
 
   .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 
   .btn {
     padding: 4px 12px;
     border-radius: 0px;
-    font-size: 11.5px;
+    font-size: 11px;
     font-family: var(--font-mono);
     font-weight: 600;
     cursor: pointer;
@@ -903,71 +923,28 @@
     background-color: var(--bg-hover);
   }
 
+  .btn-danger {
+    background-color: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
   .btn-primary {
     background-color: var(--accent);
     color: #09090b;
     border-color: var(--accent);
   }
 
-  .btn-primary:hover:not(:disabled) {
+  .btn-primary:hover {
     background-color: var(--accent-hover);
   }
 
   .btn-primary:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
-  }
-
-  .btn-danger {
-    background-color: #e06c75;
-    color: #09090b;
-    border-color: #e06c75;
-  }
-
-  .btn-danger:hover {
-    background-color: #be5046;
-    border-color: #be5046;
-  }
-
-  .danger-title {
-    color: #e06c75 !important;
-  }
-
-  .modal-message {
-    font-size: 11.5px;
-    color: var(--text-main);
-    line-height: 1.5;
-    margin-bottom: 16px;
-  }
-
-  .file-highlight {
-    color: var(--text-bright);
-  }
-
-  .warning-text {
-    color: var(--text-muted);
-    font-size: 10.5px;
-    margin-top: 4px;
-  }
-
-  .context-menu-item.danger {
-    color: #e06c75;
-  }
-
-  .context-menu-item.danger:hover {
-    background-color: rgba(224, 108, 117, 0.15);
-    color: #f38ba8;
-  }
-
-  .sidebar-header.drag-over {
-    background-color: var(--bg-hover) !important;
-    outline: 1px dashed var(--accent);
-    outline-offset: -2px;
-  }
-
-  .tree-list.drag-over {
-    outline: 1px dashed var(--accent);
-    outline-offset: -2px;
-    background-color: rgba(255, 255, 255, 0.02);
   }
 </style>

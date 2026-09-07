@@ -111,6 +111,22 @@ export const editorThemeDark = EditorView.theme({
   '.cm-scroller': {
     overflow: 'auto',
     fontFamily: 'inherit',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--border, rgba(255, 255, 255, 0.12)) transparent',
+  },
+  '.cm-scroller::-webkit-scrollbar': {
+    width: '6px',
+    height: '6px',
+  },
+  '.cm-scroller::-webkit-scrollbar-track': {
+    background: 'transparent',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb': {
+    backgroundColor: 'var(--border, rgba(255, 255, 255, 0.12))',
+    borderRadius: '0px',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+    backgroundColor: 'var(--accent, #38bdf8)',
   },
   // Line Numbers Gutters
   '.cm-gutters': {
@@ -360,6 +376,22 @@ export const editorThemeLight = EditorView.theme({
   '.cm-scroller': {
     overflow: 'auto',
     fontFamily: 'inherit',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--border, rgba(0, 0, 0, 0.14)) transparent',
+  },
+  '.cm-scroller::-webkit-scrollbar': {
+    width: '6px',
+    height: '6px',
+  },
+  '.cm-scroller::-webkit-scrollbar-track': {
+    background: 'transparent',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb': {
+    backgroundColor: 'var(--border, rgba(0, 0, 0, 0.14))',
+    borderRadius: '0px',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+    backgroundColor: 'var(--accent, #0284c7)',
   },
   // Line Numbers Gutters
   '.cm-gutters': {

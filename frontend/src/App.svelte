@@ -6,6 +6,7 @@
     EditorMode,
     CursorPosition,
     AppSettings,
+    RecentItem,
   } from './types';
   import { createMarkdownEditor } from './editor/editor';
   import { getUiFontFamily, getMonoFontFamily } from './editor/theme';
@@ -23,11 +24,9 @@
     SaveFileDialog,
     CreateNewFile,
     DeleteFile,
-    MoveFile,
     RenameFile,
     SavePastedImage,
     ExportHTML,
-    PrintDocument,
     SaveSession,
     LoadSession,
   } from '../wailsjs/go/main/App';
@@ -46,13 +45,8 @@
     PanelLeft,
     PanelLeftClose,
     Save,
-    Search,
     Eye,
     Code,
-    Columns2,
-    Printer,
-    Download,
-    Settings as SettingsIcon,
   } from '@lucide/svelte';
 
   const defaultSettings: AppSettings = {
@@ -73,6 +67,14 @@
     return defaultSettings;
   }
 
+  function loadRecentFiles(): RecentItem[] {
+    try {
+      const raw = localStorage.getItem('tex:recent_files');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
   // State
   let sidebarOpen = $state<boolean>(true);
   let notes = $state<NoteDocument[]>([]);
@@ -84,6 +86,55 @@
   let showFindReplace = $state<boolean>(false);
   let showSettingsModal = $state<boolean>(false);
   let cursorInfo = $state<CursorPosition>({ line: 1, col: 1, wordCount: 0, charCount: 0 });
+  let recentHistory = $state<RecentItem[]>(loadRecentFiles());
+
+  function saveRecentHistory(items: RecentItem[]) {
+    recentHistory = items;
+    try {
+      localStorage.setItem('tex:recent_files', JSON.stringify(items));
+    } catch {}
+  }
+
+  function recordRecentItem(title: string, path: string | null, previewText: string = '') {
+    const now = Date.now();
+    const filtered = recentHistory.filter((r) => (path ? r.path !== path : r.title !== title));
+    const entry: RecentItem = {
+      title,
+      path,
+      lastOpened: now,
+      preview: previewText ? cleanPreview(previewText) : undefined,
+    };
+    saveRecentHistory([entry, ...filtered].slice(0, 30));
+  }
+
+  // Derived recent items uniting in-memory open notes and recent history
+  let recentItems = $derived.by(() => {
+    const result: RecentItem[] = [];
+    const seenPaths = new Set<string>();
+    const seenIds = new Set<string>();
+
+    for (const note of notes) {
+      seenIds.add(note.id);
+      if (note.path) seenPaths.add(note.path);
+      result.push({
+        id: note.id,
+        title: note.title || 'Untitled',
+        path: note.path,
+        isDirty: note.isDirty,
+        lastOpened: note.modTime || Date.now(),
+        preview: note.preview,
+      });
+    }
+
+    for (const item of recentHistory) {
+      if (item.path && !seenPaths.has(item.path)) {
+        seenPaths.add(item.path);
+        result.push(item);
+      }
+    }
+
+    return result;
+  });
 
   function applyAppSettings(newSettings: AppSettings) {
     settings = newSettings;
@@ -107,23 +158,27 @@
   // Editor DOM reference & CM6 instance
   let editorContainerEl = $state<HTMLDivElement | null>(null);
   let editorInstance = $state<ReturnType<typeof createMarkdownEditor> | null>(null);
-  let previewContainerEl = $state<HTMLDivElement | null>(null);
-  let previewInstance = $state<ReturnType<typeof createMarkdownEditor> | null>(null);
   let showQuickSwitcher = $state<boolean>(false);
 
   function getAllWorkspaceFiles(): string[] {
-    const list: string[] = [];
+    const set = new Set<string>();
     function walk(items: FileTreeItem[]) {
       for (const item of items) {
         if (item.isDir) {
           if (item.children) walk(item.children);
         } else {
-          list.push(item.path);
+          set.add(item.path);
         }
       }
     }
     walk(folderTree);
-    return list;
+    for (const n of notes) {
+      if (n.path) set.add(n.path);
+    }
+    for (const r of recentHistory) {
+      if (r.path) set.add(r.path);
+    }
+    return Array.from(set);
   }
 
   function persistCurrentSession() {
@@ -172,15 +227,37 @@
     const note = createNewNote(title, content, path, modTime);
     notes = [...notes, note];
     switchNote(note.id);
+    recordRecentItem(note.title, note.path, note.content);
   }
 
   function switchNote(id: string) {
     if (activeNoteId === id) return;
     activeNoteId = id;
     const note = notes.find((n) => n.id === id);
-    if (note && editorInstance) {
-      editorInstance.setContent(note.content);
-      editorInstance.focus();
+    if (note) {
+      if (editorInstance) {
+        editorInstance.setContent(note.content);
+        editorInstance.focus();
+      }
+      recordRecentItem(note.title, note.path, note.content);
+    }
+  }
+
+  async function handleSelectRecent(item: RecentItem) {
+    if (item.id) {
+      switchNote(item.id);
+    } else if (item.path) {
+      await openFilePath(item.path);
+    }
+  }
+
+  function handleCloseRecent(item: RecentItem, e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    if (item.id) {
+      requestCloseNote(item.id, e);
+    }
+    if (item.path) {
+      saveRecentHistory(recentHistory.filter((r) => r.path !== item.path));
     }
   }
 
@@ -272,6 +349,7 @@
         ];
         switchNote(notes[0].id);
         if (editorInstance) editorInstance.setContent(file.content);
+        recordRecentItem(file.name, file.path, file.content);
       } else {
         addNote(file.name, file.content, file.path, file.modTime);
       }
@@ -301,6 +379,7 @@
       activeNote.isDirty = false;
       activeNote.modTime = res.modTime;
       notes = [...notes];
+      recordRecentItem(activeNote.title, activeNote.path, activeNote.content);
       handleRefreshFolder();
     } catch (err) {
       console.error('Failed to save file:', err);
@@ -358,28 +437,6 @@
       await handleRefreshFolder();
     } catch (err) {
       console.error('Failed to delete file:', err);
-    }
-  }
-
-  async function handleMoveFile(sourcePath: string, targetDir: string) {
-    try {
-      const res = await MoveFile(sourcePath, targetDir);
-      if (res) {
-        // If moved file was open in notes, update its path and title
-        const existing = notes.find((n) => n.path === sourcePath);
-        if (existing) {
-          existing.path = res.path;
-          existing.title = res.name;
-          existing.modTime = res.modTime;
-          notes = [...notes];
-          if (activeNoteId === existing.id) {
-            WindowSetTitle(`Tex - ${res.name}`);
-          }
-        }
-        await handleRefreshFolder();
-      }
-    } catch (err) {
-      console.error('Failed to move file:', err);
     }
   }
 
@@ -472,40 +529,12 @@
   function setEditorMode(newMode: EditorMode) {
     editorMode = newMode;
     if (editorInstance) {
-      editorInstance.setMode(newMode === 'split' ? 'source' : newMode);
-    }
-    if (newMode === 'split') {
-      setTimeout(() => {
-        if (previewContainerEl && !previewInstance && activeNote) {
-          previewInstance = createMarkdownEditor(
-            previewContainerEl,
-            activeNote.content,
-            'live',
-            settings,
-            {
-              onChange: () => {},
-              onCursorChange: () => {},
-              onSaveShortcut: handleSave,
-              onFindShortcut: () => { showFindReplace = true; },
-              getWorkspaceFiles: getAllWorkspaceFiles,
-            },
-            true
-          );
-        } else if (previewInstance && activeNote) {
-          previewInstance.setContent(activeNote.content);
-        }
-      }, 50);
+      editorInstance.setMode(newMode);
     }
   }
 
-  function cycleEditorMode() {
-    if (editorMode === 'live') setEditorMode('source');
-    else if (editorMode === 'source') setEditorMode('split');
-    else setEditorMode('live');
-  }
-
-  function toggleLiveMode() {
-    cycleEditorMode();
+  function toggleEditorMode() {
+    setEditorMode(editorMode === 'live' ? 'source' : 'live');
   }
 
   function toggleSidebar() {
@@ -543,7 +572,7 @@
         return;
       } else if (e.key === '\\') {
         e.preventDefault();
-        cycleEditorMode();
+        toggleEditorMode();
         return;
       } else if (e.key === 'b') {
         e.preventDefault();
@@ -568,7 +597,7 @@
         if (activeNoteId) requestCloseNote(activeNoteId);
       } else if (e.key === 'e') {
         e.preventDefault();
-        cycleEditorMode();
+        toggleEditorMode();
       } else if (e.key === 'f') {
         e.preventDefault();
         showFindReplace = !showFindReplace;
@@ -633,7 +662,7 @@
       editorInstance = createMarkdownEditor(
         editorContainerEl,
         initialNote.content,
-        editorMode === 'split' ? 'source' : editorMode,
+        editorMode,
         settings,
         {
           onChange: (newContent) => {
@@ -642,9 +671,6 @@
               activeNote.isDirty = true;
               activeNote.preview = cleanPreview(newContent);
               notes = [...notes];
-              if (editorMode === 'split' && previewInstance) {
-                previewInstance.setContent(newContent);
-              }
             }
           },
           onCursorChange: (pos) => {
@@ -757,20 +783,19 @@
     <!-- Left File Tree Sidebar -->
     <Sidebar
       isOpen={sidebarOpen}
-      activePath={activeNote?.path || null}
-      {currentFolder}
-      {folderTree}
-      onSelectFile={(filePath) => openFilePath(filePath)}
-      onNewNote={addNote}
+      activeId={activeNoteId}
+      {recentItems}
+      onSelectNote={handleSelectRecent}
+      onCloseNote={handleCloseRecent}
+      onNewNote={() => addNote()}
       onOpenFile={handleOpenFile}
       onOpenFolder={handleOpenFolder}
-      onRefreshFolder={handleRefreshFolder}
       onToggleSidebar={toggleSidebar}
+      onFind={() => { showQuickSwitcher = true; }}
+      onExport={handleExportHTML}
       onOpenSettings={() => { showSettingsModal = true; }}
-      onCreateFileInFolder={handleCreateFileInFolder}
-      onDeleteFile={handleDeleteFile}
-      onMoveFile={handleMoveFile}
       onRenameFile={handleRenameFile}
+      onDeleteFile={handleDeleteFile}
     />
 
     <!-- Main Workspace -->
@@ -790,53 +815,21 @@
               <PanelLeft size={15} />
             {/if}
           </button>
+        </div>
 
-          <div class="document-title-wrapper">
-            <span class="document-title">
-              {activeNote?.title || 'Untitled'}
-            </span>
-            {#if activeNote?.isDirty}
-              <span class="dirty-badge" title="Unsaved changes">●</span>
-            {/if}
-            {#if activeNote?.path}
-              <span class="document-path" title={activeNote.path}>
-                {activeNote.path}
-              </span>
-            {/if}
-          </div>
+        <!-- Centered Single Tab -->
+        <div class="document-tab-center">
+          <span class="document-tab-bracket">[</span>
+          <span class="document-tab-title" title={activeNote?.path || activeNote?.title || 'Untitled'}>
+            {activeNote?.title || 'Untitled'}
+          </span>
+          {#if activeNote?.isDirty}
+            <span class="document-tab-dirty" title="Unsaved changes">●</span>
+          {/if}
+          <span class="document-tab-bracket">]</span>
         </div>
 
         <div class="header-right">
-          <button
-            class="icon-btn"
-            title="Quick Switcher (Ctrl+P)"
-            onclick={() => { showQuickSwitcher = true; }}
-            type="button"
-          >
-            <Search size={13} />
-            <span>[find]</span>
-          </button>
-
-          <button
-            class="icon-btn"
-            title="Export as HTML (Ctrl+Shift+E)"
-            onclick={handleExportHTML}
-            type="button"
-          >
-            <Download size={13} />
-            <span>[export]</span>
-          </button>
-
-          <button
-            class="icon-btn"
-            title="Print to PDF (Ctrl+Shift+P)"
-            onclick={handlePrint}
-            type="button"
-          >
-            <Printer size={13} />
-            <span>[print]</span>
-          </button>
-
           <button
             class="icon-btn"
             title="Save File (Ctrl+S)"
@@ -849,48 +842,29 @@
 
           <button
             class="mode-badge-btn"
-            title="Switch View Mode (Ctrl+\) [live, raw, split]"
-            onclick={cycleEditorMode}
+            title="Switch View Mode (Ctrl+\) [live, raw]"
+            onclick={toggleEditorMode}
             type="button"
           >
             {#if editorMode === 'live'}
               <Eye size={13} />
               <span>[live]</span>
-            {:else if editorMode === 'source'}
+            {:else}
               <Code size={13} />
               <span>[raw]</span>
-            {:else}
-              <Columns2 size={13} />
-              <span>[split]</span>
             {/if}
-          </button>
-
-          <button
-            class="icon-btn"
-            title="Preferences (Ctrl+,)"
-            onclick={() => { showSettingsModal = true; }}
-            type="button"
-          >
-            <SettingsIcon size={13} />
-            <span>[prefs]</span>
           </button>
         </div>
       </header>
 
       <!-- Editor Container -->
-      <main class="editor-container" class:split-mode={editorMode === 'split'}>
+      <main class="editor-container">
         <FindReplace
           view={editorInstance?.view || null}
           isOpen={showFindReplace}
           onClose={() => { showFindReplace = false; }}
         />
-        <div class="editor-panes-wrapper">
-          <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
-          {#if editorMode === 'split'}
-            <div class="split-divider"></div>
-            <div class="split-preview-wrapper" bind:this={previewContainerEl}></div>
-          {/if}
-        </div>
+        <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
 
         {#if settings.showWordCount !== false && activeNote}
           <div class="stats-badge" title="{cursorInfo.charCount} chars, line {cursorInfo.line}, col {cursorInfo.col}">
@@ -1003,6 +977,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
     height: 36px;
     min-height: 36px;
     padding: 0 10px;
@@ -1016,8 +991,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
-    flex: 1;
+    z-index: 2;
   }
 
   .sidebar-toggle-btn {
@@ -1033,42 +1007,40 @@
     border-color: var(--border);
   }
 
-  .document-title-wrapper {
+  /* Centered Active File Tab (VS Code Single Tab Style) */
+  .document-tab-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
+    gap: 5px;
+    max-width: calc(100% - 200px);
+    padding: 2px 4px;
+    background: transparent;
+    user-select: none;
+    z-index: 1;
+    pointer-events: auto;
   }
 
-  .document-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-main);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .dirty-badge {
-    color: var(--dirty);
-    font-size: 10px;
-    flex-shrink: 0;
-  }
-
-  .document-path {
-    font-size: 11px;
+  .document-tab-bracket {
     color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .document-tab-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-bright);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: none;
   }
 
-  @media (min-width: 800px) {
-    .document-path {
-      display: inline;
-    }
+  .document-tab-dirty {
+    color: var(--dirty);
+    font-size: 9px;
+    flex-shrink: 0;
   }
 
   .header-right {
@@ -1076,6 +1048,7 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
+    z-index: 2;
   }
 
   .mode-badge-btn {
@@ -1128,39 +1101,10 @@
     background-color: var(--bg-app);
   }
 
-  .editor-panes-wrapper {
-    display: flex;
-    flex-direction: row;
-    flex: 1;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    position: relative;
-  }
-
   .cm-editor-wrapper {
     flex: 1;
     height: 100%;
     overflow: hidden;
-  }
-
-  .editor-container.split-mode .cm-editor-wrapper {
-    width: 50% !important;
-    max-width: 50% !important;
-  }
-
-  .split-divider {
-    width: 1px;
-    height: 100%;
-    background-color: var(--border);
-    flex-shrink: 0;
-  }
-
-  .split-preview-wrapper {
-    width: 50%;
-    height: 100%;
-    overflow-y: auto;
-    background-color: var(--bg-app);
   }
 
   .stats-badge {

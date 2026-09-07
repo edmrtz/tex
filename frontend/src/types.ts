@@ -26,7 +26,16 @@ export interface WorkspaceInfo {
   initialTree: FileTreeItem[];
 }
 
-export type EditorMode = 'live' | 'source' | 'split';
+export type EditorMode = 'live' | 'source';
+
+export interface RecentItem {
+  id?: string;
+  path: string | null;
+  title: string;
+  isDirty?: boolean;
+  lastOpened: number;
+  preview?: string;
+}
 
 export interface CursorPosition {
   line: number;
