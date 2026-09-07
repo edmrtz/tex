@@ -2,24 +2,24 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
 
 :root, :root[data-theme="dark"] {
-  --bg-app: #121214;
-  --bg-sidebar: #161619;
-  --bg-header: #121214;
-  --bg-card: #19191d;
-  --bg-subtle: #1f1f25;
-  --bg-hover: rgba(255, 255, 255, 0.07);
-  --bg-active: rgba(255, 255, 255, 0.12);
-  --bg-code: #16161a;
-  --bg-code-header: #1c1c22;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-subtle: rgba(255, 255, 255, 0.06);
+  --bg-app: #151518;
+  --bg-sidebar: #0b0b0d;
+  --bg-header: #151518;
+  --bg-card: #18181c;
+  --bg-subtle: #1e1e23;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.1);
+  --bg-code: #18181d;
+  --bg-code-header: #1f1f26;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
   --border-focus: #38bdf8;
   --text-main: #e4e4e7;
   --text-bright: #ffffff;
   --text-muted: #71717a;
   --accent: #38bdf8;
   --accent-hover: #0ea5e9;
-  --accent-subtle: rgba(56, 189, 248, 0.12);
+  --accent-subtle: rgba(56, 189, 248, 0.1);
   --dirty: #f59e0b;
   --danger: #f87171;
   --font-mono: 'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -27,24 +27,24 @@
 }
 
 :root[data-theme="light"] {
-  --bg-app: #f4f4f6;
-  --bg-sidebar: #ebebee;
-  --bg-header: #f4f4f6;
+  --bg-app: #ffffff;
+  --bg-sidebar: #ededf1;
+  --bg-header: #ffffff;
   --bg-card: #ffffff;
   --bg-subtle: #e2e2e7;
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.08);
   --bg-code: #fbfbfd;
   --bg-code-header: #eaeaf0;
-  --border: rgba(0, 0, 0, 0.14);
-  --border-subtle: rgba(0, 0, 0, 0.07);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
   --border-focus: #0284c7;
   --text-main: #18181b;
   --text-bright: #000000;
   --text-muted: #64748b;
   --accent: #0284c7;
   --accent-hover: #0369a1;
-  --accent-subtle: rgba(2, 132, 199, 0.1);
+  --accent-subtle: rgba(2, 132, 199, 0.08);
   --dirty: #d97706;
   --danger: #dc2626;
   --font-mono: 'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

@@ -92,7 +92,6 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="search-box">
-        <span class="tui-bracket">[</span>
         <Search size={14} class="search-icon" />
         <input
           bind:this={inputEl}
@@ -103,7 +102,6 @@
           onkeydown={handleKeyDown}
         />
         <span class="shortcut-hint">ESC to close</span>
-        <span class="tui-bracket">]</span>
       </div>
 
       <div class="results-list">
@@ -192,11 +190,6 @@
   .shortcut-hint {
     font-size: 10px;
     color: var(--text-muted);
-  }
-
-  .tui-bracket {
-    color: var(--accent);
-    font-weight: 700;
   }
 
   .results-list {

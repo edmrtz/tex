@@ -78,10 +78,14 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 20, A: 255}, // Dark TUI background
+		BackgroundColour: &options.RGBA{R: 13, G: 13, B: 15, A: 255}, // Match dark sidebar
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
-		EnableDefaultContextMenu: true,
+		EnableDefaultContextMenu: false,
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop:     true,
+			DisableWebViewDrop: false,
+		},
 		Bind: []interface{}{
 			app,
 		},

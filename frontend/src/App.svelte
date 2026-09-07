@@ -151,6 +151,12 @@
     }
   }
 
+  // Saving mutex to prevent duplicate Save dialogs popping up
+  let isSaving = $state<boolean>(false);
+  let isProgrammaticUpdate = false;
+  let showQuitModal = $state<boolean>(false);
+  let handleBeforeUnload: ((e: BeforeUnloadEvent) => string | void) | null = null;
+
   // Confirmation modal state
   let showCloseModal = $state<boolean>(false);
   let pendingCloseNoteId = $state<string | null>(null);
@@ -236,7 +242,9 @@
     const note = notes.find((n) => n.id === id);
     if (note) {
       if (editorInstance) {
+        isProgrammaticUpdate = true;
         editorInstance.setContent(note.content);
+        isProgrammaticUpdate = false;
         editorInstance.focus();
       }
       recordRecentItem(note.title, note.path, note.content);
@@ -276,13 +284,24 @@
 
   function closeNote(id: string) {
     const idx = notes.findIndex((n) => n.id === id);
-    if (idx === -1) return;
+    if (idx === -1) {
+      showCloseModal = false;
+      pendingCloseNoteId = null;
+      return;
+    }
 
     const remaining = notes.filter((n) => n.id !== id);
     if (remaining.length === 0) {
       const fresh = createNewNote();
       notes = [fresh];
-      switchNote(fresh.id);
+      activeNoteId = fresh.id;
+      if (editorInstance) {
+        isProgrammaticUpdate = true;
+        editorInstance.setContent('');
+        isProgrammaticUpdate = false;
+        editorInstance.focus();
+      }
+      recordRecentItem(fresh.title, fresh.path, fresh.content);
     } else {
       notes = remaining;
       if (activeNoteId === id) {
@@ -292,6 +311,30 @@
     }
     showCloseModal = false;
     pendingCloseNoteId = null;
+  }
+
+  function handleWindowClose() {
+    const dirtyNotes = notes.filter((n) => n.isDirty);
+    if (dirtyNotes.length > 0) {
+      showQuitModal = true;
+    } else {
+      Quit();
+    }
+  }
+
+  async function handleQuitSave() {
+    for (const note of notes) {
+      if (note.isDirty) {
+        switchNote(note.id);
+        const saved = await handleSave();
+        if (!saved) {
+          // Cancelled in save dialog
+          showQuitModal = false;
+          return;
+        }
+      }
+    }
+    Quit();
   }
 
   async function handleOpenFile() {
@@ -348,7 +391,11 @@
           },
         ];
         switchNote(notes[0].id);
-        if (editorInstance) editorInstance.setContent(file.content);
+        if (editorInstance) {
+          isProgrammaticUpdate = true;
+          editorInstance.setContent(file.content);
+          isProgrammaticUpdate = false;
+        }
         recordRecentItem(file.name, file.path, file.content);
       } else {
         addNote(file.name, file.content, file.path, file.modTime);
@@ -358,8 +405,9 @@
     }
   }
 
-  async function handleSave() {
-    if (!activeNote) return;
+  async function handleSave(): Promise<boolean> {
+    if (isSaving || !activeNote) return false;
+    isSaving = true;
     try {
       let targetPath = activeNote.path;
       if (!targetPath) {
@@ -370,7 +418,7 @@
           currentFolder || '',
           defaultName
         );
-        if (!targetPath) return; // Cancelled
+        if (!targetPath) return false; // Cancelled
       }
 
       const res = await SaveFile(targetPath, activeNote.content);
@@ -381,19 +429,24 @@
       notes = [...notes];
       recordRecentItem(activeNote.title, activeNote.path, activeNote.content);
       handleRefreshFolder();
+      return true;
     } catch (err) {
       console.error('Failed to save file:', err);
+      return false;
+    } finally {
+      isSaving = false;
     }
   }
 
-  async function handleSaveAs() {
-    if (!activeNote) return;
+  async function handleSaveAs(): Promise<boolean> {
+    if (isSaving || !activeNote) return false;
+    isSaving = true;
     try {
       const defaultName = activeNote.title.endsWith('.md')
         ? activeNote.title
         : `${activeNote.title}.md`;
       const targetPath = await SaveFileDialog(currentFolder || '', defaultName);
-      if (!targetPath) return;
+      if (!targetPath) return false;
 
       const res = await SaveFile(targetPath, activeNote.content);
       activeNote.path = res.path;
@@ -401,9 +454,14 @@
       activeNote.isDirty = false;
       activeNote.modTime = res.modTime;
       notes = [...notes];
+      recordRecentItem(activeNote.title, activeNote.path, activeNote.content);
       handleRefreshFolder();
+      return true;
     } catch (err) {
       console.error('Failed to save file as:', err);
+      return false;
+    } finally {
+      isSaving = false;
     }
   }
 
@@ -419,20 +477,26 @@
     }
   }
 
-  async function handleDeleteFile(filePath: string) {
+  async function handleDeleteFile(filePathOrId: string) {
     try {
-      await DeleteFile(filePath);
-      // If open in notes, remove it
-      const remaining = notes.filter((n) => n.path !== filePath);
-      if (remaining.length === 0) {
-        const fresh = createNewNote('Untitled', '');
-        notes = [fresh];
-        switchNote(fresh.id);
-      } else {
-        notes = remaining;
-        if (activeNote?.path === filePath) {
-          switchNote(notes[0].id);
-        }
+      const noteById = notes.find((n) => n.id === filePathOrId);
+      const noteByPath = notes.find((n) => n.path === filePathOrId);
+      const targetNote = noteById || noteByPath;
+
+      if (targetNote?.path) {
+        await DeleteFile(targetNote.path);
+        recentHistory = recentHistory.filter((r) => r.path !== targetNote.path);
+        saveRecentHistory(recentHistory);
+      } else if (!targetNote) {
+        try {
+          await DeleteFile(filePathOrId);
+        } catch {}
+        recentHistory = recentHistory.filter((r) => r.path !== filePathOrId);
+        saveRecentHistory(recentHistory);
+      }
+
+      if (targetNote) {
+        closeNote(targetNote.id);
       }
       await handleRefreshFolder();
     } catch (err) {
@@ -440,25 +504,64 @@
     }
   }
 
-  async function handleRenameFile(oldPath: string, newName: string) {
+  async function handleRenameFile(oldPathOrId: string, newName: string) {
     try {
-      const res = await RenameFile(oldPath, newName);
-      if (res) {
-        const existing = notes.find((n) => n.path === oldPath);
-        if (existing) {
-          existing.path = res.path;
-          existing.title = res.name;
-          existing.modTime = res.modTime;
+      const noteById = notes.find((n) => n.id === oldPathOrId);
+      const noteByPath = notes.find((n) => n.path === oldPathOrId);
+      const targetNote = noteById || noteByPath;
+
+      if (targetNote?.path) {
+        const res = await RenameFile(targetNote.path, newName);
+        if (res) {
+          targetNote.path = res.path;
+          targetNote.title = res.name;
+          targetNote.modTime = res.modTime;
           notes = [...notes];
-          if (activeNoteId === existing.id) {
+          recordRecentItem(res.name, res.path, targetNote.content);
+          if (activeNoteId === targetNote.id) {
             WindowSetTitle(`Tex - ${res.name}`);
           }
+          await handleRefreshFolder();
+          persistCurrentSession();
         }
-        await handleRefreshFolder();
-        persistCurrentSession();
+      } else if (targetNote) {
+        targetNote.title = newName;
+        notes = [...notes];
       }
     } catch (err) {
       console.error('Failed to rename file:', err);
+    }
+  }
+
+  function handleReorderNotes(reordered: RecentItem[]) {
+    const updatedHistory: RecentItem[] = [];
+    for (const item of reordered) {
+      if (item.path) {
+        updatedHistory.push({
+          title: item.title,
+          path: item.path,
+          lastOpened: item.lastOpened,
+          preview: item.preview,
+        });
+      }
+    }
+    const reorderedNotes: NoteDocument[] = [];
+    for (const item of reordered) {
+      const found = notes.find((n) => (item.id ? n.id === item.id : (item.path && n.path === item.path)));
+      if (found) reorderedNotes.push(found);
+    }
+    for (const n of notes) {
+      if (!reorderedNotes.includes(n)) reorderedNotes.push(n);
+    }
+    notes = reorderedNotes;
+    saveRecentHistory(updatedHistory);
+  }
+
+  async function handleDropExternalFiles(paths: string[]) {
+    if (paths && paths.length > 0) {
+      for (const p of paths) {
+        await openFilePath(p);
+      }
     }
   }
 
@@ -557,6 +660,7 @@
 
   // Keyboard shortcut listener
   function handleKeyDown(e: KeyboardEvent) {
+    if (e.defaultPrevented) return;
     if (e.ctrlKey || e.metaKey) {
       if ((e.key === 'p' || e.key === 'P' || e.key === 'k' || e.key === 'K') && !e.shiftKey) {
         e.preventDefault();
@@ -632,6 +736,16 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeyDown);
 
+    handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (notes.some((n) => n.isDirty)) {
+        e.preventDefault();
+        e.returnValue = '';
+        handleWindowClose();
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     window.addEventListener('tex:open-wikilink', async (e: Event) => {
       const target = (e as CustomEvent<string>).detail;
       if (!target) return;
@@ -666,7 +780,8 @@
         settings,
         {
           onChange: (newContent) => {
-            if (activeNote) {
+            if (isProgrammaticUpdate) return;
+            if (activeNote && activeNote.content !== newContent) {
               activeNote.content = newContent;
               activeNote.isDirty = true;
               activeNote.preview = cleanPreview(newContent);
@@ -748,6 +863,9 @@
 
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeyDown);
+    if (handleBeforeUnload) {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
     OnFileDropOff();
     EventsOff('cli:open-files');
     EventsOff('file:modified');
@@ -761,9 +879,7 @@
   <!-- Top TUI Window Titlebar -->
   <div class="tui-window-titlebar" style="--wails-draggable: drag;">
     <div class="titlebar-left">
-      <span class="tui-bracket">[</span>
       <span class="tui-brand">tex</span>
-      <span class="tui-bracket">]</span>
       <span class="tui-sep">//</span>
       <span class="tui-title-text">{activeNote?.title || 'untitled'}</span>
       {#if activeNote?.isDirty}
@@ -774,7 +890,7 @@
     <div class="titlebar-controls" style="--wails-draggable: no-drag;">
       <button class="tui-win-btn" title="Minimize" onclick={WindowMinimise} type="button">_</button>
       <button class="tui-win-btn" title="Maximize" onclick={WindowToggleMaximise} type="button">□</button>
-      <button class="tui-win-btn btn-close" title="Close" onclick={Quit} type="button">×</button>
+      <button class="tui-win-btn btn-close" title="Close" onclick={handleWindowClose} type="button">×</button>
     </div>
   </div>
 
@@ -796,6 +912,8 @@
       onOpenSettings={() => { showSettingsModal = true; }}
       onRenameFile={handleRenameFile}
       onDeleteFile={handleDeleteFile}
+      onReorderNotes={handleReorderNotes}
+      onDropExternalFiles={handleDropExternalFiles}
     />
 
     <!-- Main Workspace -->
@@ -819,14 +937,12 @@
 
         <!-- Centered Single Tab -->
         <div class="document-tab-center">
-          <span class="document-tab-bracket">[</span>
           <span class="document-tab-title" title={activeNote?.path || activeNote?.title || 'Untitled'}>
             {activeNote?.title || 'Untitled'}
           </span>
           {#if activeNote?.isDirty}
             <span class="document-tab-dirty" title="Unsaved changes">●</span>
           {/if}
-          <span class="document-tab-bracket">]</span>
         </div>
 
         <div class="header-right">
@@ -837,21 +953,21 @@
             type="button"
           >
             <Save size={13} />
-            <span>[save]</span>
+            <span>Save</span>
           </button>
 
           <button
             class="mode-badge-btn"
-            title="Switch View Mode (Ctrl+\) [live, raw]"
+            title="Switch View Mode (Ctrl+\) (Live / Raw)"
             onclick={toggleEditorMode}
             type="button"
           >
             {#if editorMode === 'live'}
               <Eye size={13} />
-              <span>[live]</span>
+              <span>Live</span>
             {:else}
               <Code size={13} />
-              <span>[raw]</span>
+              <span>Raw</span>
             {/if}
           </button>
         </div>
@@ -930,12 +1046,49 @@
             onclick={async () => {
               if (pendingCloseNoteId) {
                 switchNote(pendingCloseNoteId);
-                await handleSave();
-                closeNote(pendingCloseNoteId);
+                const saved = await handleSave();
+                if (saved) {
+                  closeNote(pendingCloseNoteId);
+                }
               }
             }}
           >
             Save
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Quit Confirmation Modal -->
+  {#if showQuitModal}
+    <div
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      onclick={() => { showQuitModal = false; }}
+      onkeydown={(e) => { if (e.key === 'Escape') showQuitModal = false; }}
+    >
+      <div
+        class="modal-card"
+        role="document"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="modal-title">Unsaved Changes</div>
+        <div class="modal-desc">
+          You have unsaved changes. Do you want to save them before exiting Tex?
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick={() => { showQuitModal = false; }}>
+            Cancel
+          </button>
+          <button class="btn btn-danger" onclick={Quit}>
+            Don't Save
+          </button>
+          <button class="btn btn-primary" onclick={handleQuitSave}>
+            Save & Exit
           </button>
         </div>
       </div>
@@ -1007,25 +1160,22 @@
     border-color: var(--border);
   }
 
-  /* Centered Active File Tab (VS Code Single Tab Style) */
+  /* Centered Active File Tab */
   .document-tab-center {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 5px;
-    max-width: calc(100% - 200px);
-    padding: 2px 4px;
-    background: transparent;
+    gap: 6px;
+    max-width: calc(100% - 240px);
+    padding: 3px 10px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: 4px;
     user-select: none;
     z-index: 1;
     pointer-events: auto;
-  }
-
-  .document-tab-bracket {
-    color: var(--text-muted);
-    font-size: 11px;
   }
 
   .document-tab-title {

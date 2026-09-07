@@ -54,9 +54,7 @@
       <!-- Header -->
       <div class="modal-header">
         <div class="header-title">
-          <span class="tui-bracket">[</span>
-          <span class="tui-label">preferences</span>
-          <span class="tui-bracket">]</span>
+          <span class="tui-label">Preferences</span>
         </div>
         <button class="tui-btn-close" onclick={onClose} type="button" title="Close (Esc)">
           <X size={14} />
@@ -220,7 +218,7 @@
               onclick={() => update('fontSize', Math.max(10, draft.fontSize - 1))}
               type="button"
             >
-              [-]
+              -
             </button>
             <input
               type="range"
@@ -236,7 +234,7 @@
               onclick={() => update('fontSize', Math.min(32, draft.fontSize + 1))}
               type="button"
             >
-              [+]
+              +
             </button>
           </div>
         </div>
@@ -283,7 +281,7 @@
 
       <div class="modal-footer">
         <button class="tui-btn-done" onclick={onClose} type="button">
-          [ done ]
+          Done
         </button>
       </div>
     </div>
@@ -332,9 +330,6 @@
     letter-spacing: -0.01em;
   }
 
-  .tui-bracket {
-    color: var(--text-muted);
-  }
 
   .tui-label {
     color: var(--accent);

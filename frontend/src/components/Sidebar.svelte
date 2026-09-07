@@ -11,6 +11,7 @@
     Trash2,
     Edit2,
     Download,
+    FileUp,
   } from '@lucide/svelte';
 
   let {
@@ -28,6 +29,8 @@
     onOpenSettings,
     onRenameFile,
     onDeleteFile,
+    onReorderNotes,
+    onDropExternalFiles,
   }: {
     isOpen: boolean;
     activeId: string;
@@ -41,8 +44,10 @@
     onFind: () => void;
     onExport: () => void;
     onOpenSettings: () => void;
-    onRenameFile?: (oldPath: string, newName: string) => void;
-    onDeleteFile?: (filePath: string) => void;
+    onRenameFile?: (oldPathOrId: string, newName: string) => void;
+    onDeleteFile?: (filePathOrId: string) => void;
+    onReorderNotes?: (items: RecentItem[]) => void;
+    onDropExternalFiles?: (filePaths: string[]) => void;
   } = $props();
 
   let searchQuery = $state('');
@@ -52,15 +57,20 @@
   let renameName = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
+  // Drag-and-drop state
+  let draggedIndex = $state<number | null>(null);
+  let dragOverIndex = $state<number | null>(null);
+  let dragPosition = $state<'before' | 'after' | null>(null);
+  let isExternalDragOver = $state<boolean>(false);
+
   function handleItemContextMenu(e: MouseEvent, item: RecentItem) {
-    if (!item.path) return;
     e.preventDefault();
     e.stopPropagation();
-    contextMenu = {
-      x: Math.min(e.clientX, window.innerWidth - 170),
-      y: Math.min(e.clientY, window.innerHeight - 130),
-      item,
-    };
+    const menuWidth = 160;
+    const menuHeight = 120;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 8);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 8);
+    contextMenu = { x, y, item };
   }
 
   function promptRename(item: RecentItem) {
@@ -75,9 +85,10 @@
 
   function submitRename(e?: Event) {
     if (e) e.preventDefault();
-    if (!showRenameModal || !renameName.trim() || !showRenameModal.path) return;
-    if (onRenameFile) {
-      onRenameFile(showRenameModal.path, renameName.trim());
+    if (!showRenameModal || !renameName.trim()) return;
+    const targetKey = showRenameModal.path || showRenameModal.id;
+    if (targetKey && onRenameFile) {
+      onRenameFile(targetKey, renameName.trim());
     }
     showRenameModal = null;
   }
@@ -88,16 +99,19 @@
   }
 
   function confirmDelete() {
-    if (!showDeleteModal || !showDeleteModal.path) return;
-    onDeleteFile?.(showDeleteModal.path);
+    if (!showDeleteModal) return;
+    const targetKey = showDeleteModal.path || showDeleteModal.id;
+    if (targetKey) {
+      onDeleteFile?.(targetKey);
+    }
     showDeleteModal = null;
   }
 
   function getDisplayPath(fullPath: string | null): string {
-    if (!fullPath) return 'untitled';
-    const parts = fullPath.replace(/[/\\]+$/, '').split(/[/\\]/);
+    if (!fullPath) return '';
+    const parts = fullPath.replace(/[\\/]+$/, '').split(/[\\/]/);
     if (parts.length > 2) {
-      return `.../${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+      return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
     }
     return fullPath;
   }
@@ -113,10 +127,117 @@
   }
 
   const filteredItems = $derived(filterRecent(recentItems, searchQuery));
+
+  // --- Drag and Drop Handlers ---
+  function handleDragStart(e: DragEvent, index: number, item: RecentItem) {
+    draggedIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.path || item.title);
+      e.dataTransfer.setData('application/x-tex-item-index', String(index));
+    }
+  }
+
+  function handleItemDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (draggedIndex === null) {
+      return;
+    }
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    const targetEl = (e.currentTarget as HTMLElement);
+    const rect = targetEl.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    dragOverIndex = index;
+    dragPosition = e.clientY < midY ? 'before' : 'after';
+  }
+
+  function handleItemDragLeave() {
+    // Handled globally
+  }
+
+  function handleDragEnd() {
+    draggedIndex = null;
+    dragOverIndex = null;
+    dragPosition = null;
+    isExternalDragOver = false;
+  }
+
+  function handleItemDrop(e: DragEvent, targetIndex: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedIndex !== null) {
+      if (draggedIndex !== targetIndex) {
+        const list = [...recentItems];
+        const [moved] = list.splice(draggedIndex, 1);
+        let insertIndex = targetIndex;
+        if (dragPosition === 'after') {
+          insertIndex = draggedIndex < targetIndex ? targetIndex : targetIndex + 1;
+        } else {
+          insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+        }
+        insertIndex = Math.max(0, Math.min(list.length, insertIndex));
+        list.splice(insertIndex, 0, moved);
+        onReorderNotes?.(list);
+      }
+      handleDragEnd();
+      return;
+    }
+
+    handleExternalDrop(e);
+    handleDragEnd();
+  }
+
+  function handleContainerDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      const isFile = Array.from(e.dataTransfer.types).includes('Files');
+      if (isFile) {
+        isExternalDragOver = true;
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    }
+  }
+
+  function handleContainerDragLeave(e: DragEvent) {
+    const related = e.relatedTarget as HTMLElement;
+    if (!related || !related.closest('.sidebar-content')) {
+      isExternalDragOver = false;
+    }
+  }
+
+  function handleExternalDrop(e: DragEvent) {
+    e.preventDefault();
+    isExternalDragOver = false;
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filePaths: string[] = [];
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i];
+        const p = (file as any).path || file.name;
+        if (p) filePaths.push(p);
+      }
+      if (filePaths.length > 0) {
+        onDropExternalFiles?.(filePaths);
+      }
+    }
+  }
 </script>
 
 <svelte:window
-  onclick={() => { contextMenu = null; }}
+  onpointerdown={(e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.sidebar-context-menu')) {
+      contextMenu = null;
+    }
+  }}
+  oncontextmenu={(e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.recent-item')) {
+      contextMenu = null;
+    }
+  }}
   onkeydown={(e) => {
     if (e.key === 'Escape') {
       contextMenu = null;
@@ -131,9 +252,7 @@
     <!-- Header -->
     <div class="sidebar-header">
       <div class="workspace-meta">
-        <span class="tui-bracket">[</span>
-        <span class="sidebar-title">recent</span>
-        <span class="tui-bracket">]</span>
+        <span class="sidebar-title">Notes</span>
       </div>
 
       <div class="header-actions">
@@ -156,7 +275,7 @@
         {#if onOpenFolder}
           <button
             class="action-btn"
-            title="Open Folder"
+            title="Open Folder (Ctrl+Shift+O)"
             onclick={onOpenFolder}
             type="button"
           >
@@ -180,7 +299,7 @@
         <Search size={13} class="search-icon" />
         <input
           type="text"
-          placeholder="Search recent..."
+          placeholder="Search notes..."
           bind:value={searchQuery}
           class="search-input"
         />
@@ -189,6 +308,7 @@
             class="clear-search"
             onclick={() => { searchQuery = ''; }}
             type="button"
+            title="Clear search"
           >
             <X size={12} />
           </button>
@@ -196,12 +316,27 @@
       </div>
     </div>
 
-    <!-- Scrollable Recent Items List -->
-    <div class="sidebar-content">
+    <!-- Scrollable Notes List with Drag & Drop -->
+    <div
+      class="sidebar-content"
+      class:external-drag-target={isExternalDragOver}
+      ondragover={handleContainerDragOver}
+      ondragleave={handleContainerDragLeave}
+      ondrop={handleExternalDrop}
+      role="region"
+      aria-label="Notes list"
+    >
+      {#if isExternalDragOver}
+        <div class="external-drop-overlay">
+          <FileUp size={22} class="drop-icon" />
+          <span>Drop markdown files here to open</span>
+        </div>
+      {/if}
+
       {#if filteredItems.length === 0}
         <div class="empty-state">
           {#if searchQuery}
-            No matching recent notes
+            No matching notes
           {:else}
             No recent notes
             <div class="empty-action">
@@ -213,15 +348,26 @@
           {/if}
         </div>
       {:else}
-        <div class="recent-list">
-          {#each filteredItems as item (item.id || item.path || item.title)}
+        <div class="recent-list" role="list">
+          {#each filteredItems as item, index (item.id || item.path || item.title)}
             {@const isSelected = item.id ? item.id === activeId : (item.path && item.path === activeId)}
+            {@const isDraggingThis = draggedIndex === index}
+            {@const isTargetThis = dragOverIndex === index}
             <div
               class="recent-item"
               class:active={isSelected}
+              class:is-dragging={isDraggingThis}
+              class:drop-line-before={isTargetThis && dragPosition === 'before'}
+              class:drop-line-after={isTargetThis && dragPosition === 'after'}
+              draggable="true"
+              ondragstart={(e) => handleDragStart(e, index, item)}
+              ondragover={(e) => handleItemDragOver(e, index)}
+              ondragleave={handleItemDragLeave}
+              ondragend={handleDragEnd}
+              ondrop={(e) => handleItemDrop(e, index)}
               onclick={() => onSelectNote(item)}
               oncontextmenu={(e) => handleItemContextMenu(e, item)}
-              role="button"
+              role="listitem"
               tabindex="0"
               onkeydown={(e) => { if (e.key === 'Enter') onSelectNote(item); }}
             >
@@ -262,7 +408,7 @@
       {/if}
     </div>
 
-    <!-- Footer with features: settings, export, find -->
+    <!-- Footer: Clean modern actions without brackets -->
     <div class="sidebar-footer">
       <button
         class="footer-btn"
@@ -271,7 +417,7 @@
         type="button"
       >
         <Search size={13} />
-        <span>[find]</span>
+        <span class="btn-label">Find</span>
         <span class="shortcut-tag">Ctrl+P</span>
       </button>
 
@@ -282,7 +428,7 @@
         type="button"
       >
         <Download size={13} />
-        <span>[export]</span>
+        <span class="btn-label">Export</span>
         <span class="shortcut-tag">Ctrl+Shift+E</span>
       </button>
 
@@ -293,42 +439,43 @@
         type="button"
       >
         <SettingsIcon size={13} />
-        <span>[settings]</span>
+        <span class="btn-label">Settings</span>
         <span class="shortcut-tag">Ctrl+,</span>
       </button>
     </div>
   </aside>
 {/if}
 
+<!-- Right-click Context Menu -->
 {#if contextMenu}
   <div
-    class="tui-context-menu"
+    class="sidebar-context-menu"
     style="top: {contextMenu.y}px; left: {contextMenu.x}px;"
     onclick={(e) => e.stopPropagation()}
+    role="menu"
+    tabindex="-1"
   >
     <div class="context-menu-header">
-      <span class="tui-bracket">[</span>
       <span class="context-menu-title">{contextMenu.item.title}</span>
-      <span class="tui-bracket">]</span>
     </div>
-    {#if contextMenu.item.path}
-      <button
-        class="context-menu-item"
-        onclick={() => promptRename(contextMenu!.item)}
-        type="button"
-      >
-        <Edit2 size={13} />
-        <span>[~ rename file]</span>
-      </button>
-      <button
-        class="context-menu-item danger"
-        onclick={() => promptDelete(contextMenu!.item)}
-        type="button"
-      >
-        <Trash2 size={13} />
-        <span>[- delete file]</span>
-      </button>
-    {/if}
+    <button
+      class="context-menu-item"
+      onclick={() => promptRename(contextMenu!.item)}
+      type="button"
+      role="menuitem"
+    >
+      <Edit2 size={13} />
+      <span>Rename</span>
+    </button>
+    <button
+      class="context-menu-item danger"
+      onclick={() => promptDelete(contextMenu!.item)}
+      type="button"
+      role="menuitem"
+    >
+      <Trash2 size={13} />
+      <span>Delete</span>
+    </button>
     {#if onCloseNote}
       <button
         class="context-menu-item"
@@ -338,14 +485,16 @@
           onCloseNote(itm, e);
         }}
         type="button"
+        role="menuitem"
       >
         <X size={13} />
-        <span>[× close note]</span>
+        <span>Close Note</span>
       </button>
     {/if}
   </div>
 {/if}
 
+<!-- Rename Modal -->
 {#if showRenameModal}
   <div
     class="modal-overlay"
@@ -362,9 +511,7 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="modal-title">
-        <span class="tui-bracket">[</span>
-        <span>rename file</span>
-        <span class="tui-bracket">]</span>
+        <span>Rename Note</span>
       </div>
       <form onsubmit={submitRename}>
         <div class="modal-input-row">
@@ -382,14 +529,14 @@
             class="btn btn-secondary"
             onclick={() => { showRenameModal = null; }}
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"
             class="btn btn-primary"
             disabled={!renameName.trim() || renameName.trim() === showRenameModal.title}
           >
-            rename
+            Rename
           </button>
         </div>
       </form>
@@ -397,6 +544,7 @@
   </div>
 {/if}
 
+<!-- Delete Confirmation Modal -->
 {#if showDeleteModal}
   <div
     class="modal-overlay"
@@ -413,13 +561,15 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="modal-title danger-title">
-        <span class="tui-bracket">[</span>
-        <span>delete file</span>
-        <span class="tui-bracket">]</span>
+        <span>Delete Note</span>
       </div>
       <div class="modal-message">
         Are you sure you want to delete <strong class="file-highlight">"{showDeleteModal.title}"</strong>?
-        <div class="warning-text">This will remove it from disk.</div>
+        {#if showDeleteModal.path}
+          <div class="warning-text">This will permanently remove the file from disk.</div>
+        {:else}
+          <div class="warning-text">This will discard this unsaved note.</div>
+        {/if}
       </div>
       <div class="modal-actions">
         <button
@@ -427,14 +577,14 @@
           class="btn btn-secondary"
           onclick={() => { showDeleteModal = null; }}
         >
-          cancel
+          Cancel
         </button>
         <button
           type="button"
           class="btn btn-danger"
           onclick={confirmDelete}
         >
-          delete
+          Delete
         </button>
       </div>
     </div>
@@ -460,7 +610,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--border);
     background-color: var(--bg-sidebar);
   }
@@ -468,27 +618,21 @@
   .workspace-meta {
     display: flex;
     align-items: center;
-    gap: 4px;
     min-width: 0;
   }
 
-  .tui-bracket {
-    color: var(--text-muted);
-    font-size: 11.5px;
-  }
-
   .sidebar-title {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     flex-shrink: 0;
   }
 
@@ -500,33 +644,32 @@
     height: 24px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 0px;
+    border-radius: 4px;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease;
+    transition: background-color 0.12s ease, color 0.12s ease;
   }
 
   .action-btn:hover {
     background-color: var(--bg-hover);
-    border-color: var(--border);
     color: var(--text-bright);
   }
 
   /* Search */
   .sidebar-search {
-    padding: 6px 8px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-subtle);
   }
 
   .search-input-wrapper {
     display: flex;
     align-items: center;
-    background-color: var(--bg-app);
+    background-color: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0px;
-    padding: 3px 6px;
+    border-radius: 4px;
+    padding: 4px 8px;
     gap: 6px;
-    transition: border-color 0.1s ease;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
 
   .search-input-wrapper:focus-within {
@@ -550,6 +693,7 @@
 
   .search-input::placeholder {
     color: var(--text-muted);
+    opacity: 0.8;
   }
 
   .clear-search {
@@ -557,11 +701,11 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 2px;
+    padding: 1px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0px;
+    border-radius: 2px;
   }
 
   .clear-search:hover {
@@ -573,19 +717,50 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px;
+    padding: 8px 6px;
+    position: relative;
+  }
+
+  .sidebar-content.external-drag-target {
+    background-color: rgba(56, 189, 248, 0.04);
+  }
+
+  .external-drop-overlay {
+    position: absolute;
+    inset: 6px;
+    border: 1.5px dashed var(--accent);
+    border-radius: 6px;
+    background-color: rgba(56, 189, 248, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--accent);
+    font-size: 11px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  :global(.drop-icon) {
+    color: var(--accent);
+    animation: bounce 0.8s infinite alternate ease-in-out;
+  }
+
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-4px); }
   }
 
   .empty-state {
     font-size: 11px;
     color: var(--text-muted);
-    font-style: italic;
-    padding: 24px 10px;
+    padding: 32px 12px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
 
   .empty-action {
@@ -597,20 +772,21 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 10px;
+    padding: 5px 12px;
     background-color: var(--bg-hover);
-    border: 1px dashed var(--border);
-    border-radius: 0px;
-    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-main);
     font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
-    transition: color 0.1s ease, border-color 0.1s ease;
+    transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
   }
 
   .btn-create-note:hover {
     color: var(--accent);
     border-color: var(--accent);
+    background-color: var(--bg-active);
   }
 
   .recent-list {
@@ -623,24 +799,53 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
+    padding: 7px 10px;
     border: 1px solid transparent;
-    border-radius: 0px;
+    border-left: 2px solid transparent;
+    border-radius: 4px;
     background-color: transparent;
     cursor: pointer;
-    transition: background-color 0.1s ease, border-color 0.1s ease;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
     outline: none;
     position: relative;
   }
 
   .recent-item:hover {
     background-color: var(--bg-hover);
-    border-color: var(--border-subtle);
   }
 
   .recent-item.active {
     background-color: var(--bg-active);
-    border-color: var(--border-focus);
+    border-left-color: var(--accent);
+  }
+
+  .recent-item.is-dragging {
+    opacity: 0.35;
+    background-color: var(--bg-hover);
+  }
+
+  .recent-item.drop-line-before::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background-color: var(--accent);
+    border-radius: 1px;
+    z-index: 10;
+  }
+
+  .recent-item.drop-line-after::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background-color: var(--accent);
+    border-radius: 1px;
+    z-index: 10;
   }
 
   .recent-item-main {
@@ -654,7 +859,7 @@
   .recent-item-header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     min-width: 0;
   }
 
@@ -683,7 +888,7 @@
 
   .dirty-indicator {
     color: var(--dirty);
-    font-size: 9px;
+    font-size: 8px;
     flex-shrink: 0;
   }
 
@@ -691,11 +896,11 @@
   .recent-item-preview {
     font-size: 10px;
     color: var(--text-muted);
-    padding-left: 19px;
+    padding-left: 20px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    opacity: 0.8;
+    opacity: 0.75;
   }
 
   .recent-item-close {
@@ -711,8 +916,8 @@
     cursor: pointer;
     padding: 0;
     margin-left: 4px;
-    border-radius: 0px;
-    transition: opacity 0.1s ease, color 0.1s ease, background-color 0.1s ease;
+    border-radius: 3px;
+    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
   }
 
   .recent-item:hover .recent-item-close {
@@ -729,7 +934,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 6px 8px;
+    padding: 8px 10px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-sidebar);
   }
@@ -737,48 +942,51 @@
   .footer-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     width: 100%;
-    padding: 4px 6px;
+    padding: 5px 8px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 0px;
+    border-radius: 4px;
     color: var(--text-muted);
     font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+    transition: background-color 0.12s ease, color 0.12s ease;
   }
 
   .footer-btn:hover {
     background-color: var(--bg-hover);
-    border-color: var(--border);
     color: var(--text-bright);
+  }
+
+  .btn-label {
+    font-weight: 500;
   }
 
   .shortcut-tag {
     margin-left: auto;
     font-size: 9.5px;
     color: var(--text-muted);
-    font-family: var(--font-mono);
+    opacity: 0.75;
   }
 
   /* Context Menu */
-  .tui-context-menu {
+  .sidebar-context-menu {
     position: fixed;
     z-index: 2000;
     background-color: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0px;
+    border-radius: 4px;
     padding: 4px;
     min-width: 140px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
     font-family: var(--font-mono);
   }
 
   .context-menu-header {
-    padding: 3px 6px 4px 6px;
-    font-size: 10.5px;
+    padding: 4px 8px 5px 8px;
+    font-size: 10px;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border);
     margin-bottom: 3px;
@@ -795,15 +1003,15 @@
   .context-menu-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     width: 100%;
-    padding: 4px 8px;
+    padding: 5px 8px;
     font-size: 11px;
     font-family: var(--font-mono);
     color: var(--text-main);
     background: transparent;
     border: none;
-    border-radius: 0px;
+    border-radius: 3px;
     cursor: pointer;
     text-align: left;
     transition: background-color 0.1s ease;
@@ -838,23 +1046,21 @@
   .modal-card {
     background-color: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0px;
-    padding: 16px 20px;
+    border-radius: 6px;
+    padding: 18px 22px;
     width: 360px;
     max-width: 90%;
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
     font-family: var(--font-mono);
   }
 
   .modal-title {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-bright);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
-    gap: 4px;
-    text-transform: uppercase;
   }
 
   .modal-title.danger-title {
@@ -862,18 +1068,18 @@
   }
 
   .modal-input-row {
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .tui-modal-input {
     width: 100%;
     background-color: var(--bg-app);
     border: 1px solid var(--border);
-    border-radius: 0px;
+    border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
     font-size: 12px;
-    padding: 6px 8px;
+    padding: 6px 10px;
     outline: none;
   }
 
@@ -882,10 +1088,10 @@
   }
 
   .modal-message {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-main);
-    margin-bottom: 16px;
-    line-height: 1.4;
+    margin-bottom: 18px;
+    line-height: 1.5;
   }
 
   .file-highlight {
@@ -893,25 +1099,26 @@
   }
 
   .warning-text {
-    margin-top: 4px;
-    font-size: 10.5px;
+    margin-top: 5px;
+    font-size: 11px;
     color: var(--danger);
   }
 
   .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 8px;
   }
 
   .btn {
-    padding: 4px 12px;
-    border-radius: 0px;
-    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 4px;
+    font-size: 11.5px;
     font-family: var(--font-mono);
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     border: 1px solid var(--border);
+    transition: background-color 0.12s ease, opacity 0.12s ease;
   }
 
   .btn-secondary {
