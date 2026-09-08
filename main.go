@@ -18,6 +18,10 @@ import (
 var assets embed.FS
 
 func main() {
+	// Workaround for WebKitGTK black window on Linux with NVIDIA / Wayland / compositors
+	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
+		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+	}
 	// Parse command line arguments (skip executable path)
 	var cliFiles []string
 	if len(os.Args) > 1 {

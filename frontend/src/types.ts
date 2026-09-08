@@ -6,6 +6,7 @@ export interface NoteDocument {
   isDirty: boolean;
   modTime: number;
   preview: string;
+  tags?: string[];
 }
 
 // Backward compatibility alias for Tab
@@ -22,8 +23,15 @@ export interface FileTreeItem {
 
 export interface WorkspaceInfo {
   currentDir: string;
+  folders?: string[];
   initialFiles: string[];
   initialTree: FileTreeItem[];
+}
+
+export interface SidebarFolder {
+  path: string;
+  name: string;
+  tree: FileTreeItem[];
 }
 
 export type EditorMode = 'live' | 'source';
@@ -35,6 +43,7 @@ export interface RecentItem {
   isDirty?: boolean;
   lastOpened: number;
   preview?: string;
+  tags?: string[];
 }
 
 export interface CursorPosition {

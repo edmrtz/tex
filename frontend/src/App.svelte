@@ -3,6 +3,7 @@
   import type {
     NoteDocument,
     FileTreeItem,
+    SidebarFolder,
     EditorMode,
     CursorPosition,
     AppSettings,
@@ -11,8 +12,14 @@
   import { createMarkdownEditor } from './editor/editor';
   import { getUiFontFamily, getMonoFontFamily } from './editor/theme';
   import Sidebar from './components/Sidebar.svelte';
+  import TagBar from './components/TagBar.svelte';
   import FindReplace from './components/FindReplace.svelte';
   import SettingsModal from './components/SettingsModal.svelte';
+  import {
+    extractTags,
+    addTagToContent,
+    removeTagFromContent,
+  } from './utils/tags';
   import {
     GetInitialFiles,
     GetWorkspaceInfo,
@@ -23,12 +30,16 @@
     OpenFileDialog,
     SaveFileDialog,
     CreateNewFile,
+    CreateNewDirectory,
     DeleteFile,
     RenameFile,
     SavePastedImage,
     ExportHTML,
     SaveSession,
     LoadSession,
+    IsDirectory,
+    WatchDirectory,
+    UnwatchDirectory,
   } from '../wailsjs/go/main/App';
   import {
     EventsOn,
@@ -75,19 +86,44 @@
     return [];
   }
 
+  function loadSidebarFolders(): SidebarFolder[] {
+    try {
+      const raw = localStorage.getItem('tex:sidebar_folders');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => ({
+            path: typeof item === 'string' ? item : item.path,
+            name: typeof item === 'string' ? (item.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || item) : item.name,
+            tree: [],
+          }));
+        }
+      }
+    } catch {}
+    return [];
+  }
+
+  function saveSidebarFolders(folders: SidebarFolder[]) {
+    sidebarFolders = folders;
+    try {
+      const saved = folders.map((f) => ({ path: f.path, name: f.name }));
+      localStorage.setItem('tex:sidebar_folders', JSON.stringify(saved));
+    } catch {}
+  }
+
   // State
   let sidebarOpen = $state<boolean>(true);
   let notes = $state<NoteDocument[]>([]);
   let activeNoteId = $state<string>('');
   let currentFolder = $state<string>('');
-  let folderTree = $state<FileTreeItem[]>([]);
+  let sidebarFolders = $state<SidebarFolder[]>(loadSidebarFolders());
   let editorMode = $state<EditorMode>('live');
   let settings = $state<AppSettings>(loadSettings());
   let showFindReplace = $state<boolean>(false);
   let showSettingsModal = $state<boolean>(false);
   let cursorInfo = $state<CursorPosition>({ line: 1, col: 1, wordCount: 0, charCount: 0 });
   let recentHistory = $state<RecentItem[]>(loadRecentFiles());
-
+  let activeTagFilter = $state<string | null>(null);
   function saveRecentHistory(items: RecentItem[]) {
     recentHistory = items;
     try {
@@ -95,14 +131,21 @@
     } catch {}
   }
 
-  function recordRecentItem(title: string, path: string | null, previewText: string = '') {
+  function recordRecentItem(
+    title: string,
+    path: string | null,
+    previewTextOrContent: string = '',
+    tags?: string[]
+  ) {
     const now = Date.now();
     const filtered = recentHistory.filter((r) => (path ? r.path !== path : r.title !== title));
+    const resolvedTags = tags || extractTags(previewTextOrContent);
     const entry: RecentItem = {
       title,
       path,
       lastOpened: now,
-      preview: previewText ? cleanPreview(previewText) : undefined,
+      preview: previewTextOrContent ? cleanPreview(previewTextOrContent) : undefined,
+      tags: resolvedTags.length > 0 ? resolvedTags : undefined,
     };
     saveRecentHistory([entry, ...filtered].slice(0, 30));
   }
@@ -123,9 +166,9 @@
         isDirty: note.isDirty,
         lastOpened: note.modTime || Date.now(),
         preview: note.preview,
+        tags: note.tags || extractTags(note.content),
       });
     }
-
     for (const item of recentHistory) {
       if (item.path && !seenPaths.has(item.path)) {
         seenPaths.add(item.path);
@@ -135,6 +178,99 @@
 
     return result;
   });
+
+  let allWorkspaceTags = $derived.by(() => {
+    const set = new Set<string>();
+    for (const item of recentItems) {
+      if (item.tags) {
+        for (const t of item.tags) set.add(t);
+      }
+    }
+    for (const note of notes) {
+      if (note.tags) {
+        for (const t of note.tags) set.add(t);
+      }
+    }
+    return Array.from(set).sort();
+  });
+
+  function handleAddActiveTag(newTag: string) {
+    if (!activeNote) return;
+    const updated = addTagToContent(activeNote.content, newTag);
+    if (updated !== activeNote.content) {
+      activeNote.content = updated;
+      activeNote.tags = extractTags(updated);
+      activeNote.isDirty = true;
+      activeNote.preview = cleanPreview(updated);
+      notes = [...notes];
+      if (editorInstance) {
+        isProgrammaticUpdate = true;
+        editorInstance.setContent(updated);
+        isProgrammaticUpdate = false;
+      }
+      recordRecentItem(activeNote.title, activeNote.path, activeNote.content, activeNote.tags);
+    }
+  }
+
+  function handleRemoveActiveTag(tagToRemove: string) {
+    if (!activeNote) return;
+    const updated = removeTagFromContent(activeNote.content, tagToRemove);
+    if (updated !== activeNote.content) {
+      activeNote.content = updated;
+      activeNote.tags = extractTags(updated);
+      activeNote.isDirty = true;
+      activeNote.preview = cleanPreview(updated);
+      notes = [...notes];
+      if (editorInstance) {
+        isProgrammaticUpdate = true;
+        editorInstance.setContent(updated);
+        isProgrammaticUpdate = false;
+      }
+      recordRecentItem(activeNote.title, activeNote.path, activeNote.content, activeNote.tags);
+    }
+  }
+
+  async function handleAddTagToNote(item: RecentItem, tag: string) {
+    const targetNote = notes.find((n) => (item.id ? n.id === item.id : (item.path && n.path === item.path)));
+    if (targetNote) {
+      const updated = addTagToContent(targetNote.content, tag);
+      if (updated !== targetNote.content) {
+        targetNote.content = updated;
+        targetNote.tags = extractTags(updated);
+        targetNote.isDirty = true;
+        targetNote.preview = cleanPreview(updated);
+        notes = [...notes];
+        if (targetNote.id === activeNoteId && editorInstance) {
+          isProgrammaticUpdate = true;
+          editorInstance.setContent(updated);
+          isProgrammaticUpdate = false;
+        }
+        recordRecentItem(targetNote.title, targetNote.path, targetNote.content, targetNote.tags);
+      }
+      return;
+    }
+
+    if (item.path) {
+      try {
+        const file = await ReadFile(item.path);
+        const updated = addTagToContent(file.content, tag);
+        if (updated !== file.content) {
+          await SaveFile(item.path, updated);
+          const newTags = extractTags(updated);
+          recordRecentItem(item.title, item.path, updated, newTags);
+        }
+      } catch (err) {
+        console.error('Failed to add tag to file on disk:', err);
+      }
+    }
+  }
+
+  function handleSelectTagFilter(tag: string | null) {
+    activeTagFilter = tag;
+    if (tag && !sidebarOpen) {
+      sidebarOpen = true;
+    }
+  }
 
   function applyAppSettings(newSettings: AppSettings) {
     settings = newSettings;
@@ -177,7 +313,9 @@
         }
       }
     }
-    walk(folderTree);
+    for (const folder of sidebarFolders) {
+      walk(folder.tree);
+    }
     for (const n of notes) {
       if (n.path) set.add(n.path);
     }
@@ -188,10 +326,11 @@
   }
 
   function persistCurrentSession() {
-    if (!currentFolder && notes.length === 0) return;
+    if (!currentFolder && notes.length === 0 && sidebarFolders.length === 0) return;
     const openFiles = notes.map((n) => n.path).filter((p): p is string => p !== null);
     const activeFile = activeNote?.path || '';
-    SaveSession(currentFolder || '', openFiles, activeFile).catch(() => {});
+    const folderPaths = sidebarFolders.map((f) => f.path);
+    SaveSession(currentFolder || '', folderPaths, openFiles, activeFile).catch(() => {});
   }
 
   let activeNote = $derived(notes.find((n) => n.id === activeNoteId) || null);
@@ -226,6 +365,7 @@
       isDirty: false,
       modTime,
       preview: cleanPreview(content),
+      tags: extractTags(content),
     };
   }
 
@@ -347,24 +487,77 @@
     }
   }
 
-  async function handleOpenFolder() {
+  async function refreshSidebarFolder(folderPath: string) {
     try {
-      const folder = await OpenDirectoryDialog();
-      if (!folder) return;
-      currentFolder = folder;
-      await handleRefreshFolder();
+      const tree = await ReadDirectoryTree(folderPath, 6);
+      sidebarFolders = sidebarFolders.map((f) =>
+        f.path === folderPath ? { ...f, tree: tree || [] } : f
+      );
     } catch (err) {
-      console.error('Failed to open folder:', err);
+      console.error(`Failed to refresh folder ${folderPath}:`, err);
     }
   }
 
-  async function handleRefreshFolder() {
-    if (!currentFolder) return;
+  async function refreshAllSidebarFolders() {
+    for (const folder of sidebarFolders) {
+      await refreshSidebarFolder(folder.path);
+    }
+  }
+
+  async function handleAddFolder(folderPath?: string) {
+    let target = folderPath;
+    if (!target) {
+      try {
+        target = await OpenDirectoryDialog();
+      } catch (err) {
+        console.error('Failed to open directory dialog:', err);
+        return;
+      }
+    }
+    if (!target) return;
+
+    const existing = sidebarFolders.find((f) => f.path === target);
+    if (existing) {
+      await refreshSidebarFolder(target);
+      return;
+    }
+
+    const name = target.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || target;
     try {
-      const tree = await ReadDirectoryTree(currentFolder, 3);
-      folderTree = tree || [];
+      const tree = await ReadDirectoryTree(target, 6);
+      const newFolder: SidebarFolder = {
+        path: target,
+        name,
+        tree: tree || [],
+      };
+      saveSidebarFolders([...sidebarFolders, newFolder]);
+      currentFolder = target;
+      WatchDirectory(target).catch(() => {});
+      persistCurrentSession();
     } catch (err) {
-      console.error('Failed to read directory tree:', err);
+      console.error('Failed to add folder:', err);
+    }
+  }
+
+  function handleRemoveFolder(folderPath: string) {
+    UnwatchDirectory(folderPath).catch(() => {});
+    const filtered = sidebarFolders.filter((f) => f.path !== folderPath);
+    saveSidebarFolders(filtered);
+    if (currentFolder === folderPath) {
+      currentFolder = filtered.length > 0 ? filtered[0].path : '';
+    }
+    persistCurrentSession();
+  }
+
+  async function handleOpenFolder() {
+    await handleAddFolder();
+  }
+
+  async function handleRefreshFolder(folderPath?: string) {
+    if (folderPath) {
+      await refreshSidebarFolder(folderPath);
+    } else {
+      await refreshAllSidebarFolders();
     }
   }
 
@@ -388,9 +581,9 @@
             isDirty: false,
             modTime: file.modTime,
             preview: cleanPreview(file.content),
+            tags: extractTags(file.content),
           },
         ];
-        switchNote(notes[0].id);
         if (editorInstance) {
           isProgrammaticUpdate = true;
           editorInstance.setContent(file.content);
@@ -426,9 +619,9 @@
       activeNote.title = res.name;
       activeNote.isDirty = false;
       activeNote.modTime = res.modTime;
+      activeNote.tags = extractTags(activeNote.content);
       notes = [...notes];
-      recordRecentItem(activeNote.title, activeNote.path, activeNote.content);
-      handleRefreshFolder();
+      recordRecentItem(activeNote.title, activeNote.path, activeNote.content, activeNote.tags);
       return true;
     } catch (err) {
       console.error('Failed to save file:', err);
@@ -469,11 +662,32 @@
     try {
       const res = await CreateNewFile(folderPath, fileName);
       if (res) {
-        await handleRefreshFolder();
+        await refreshSidebarFolder(folderPath);
+        const rootFolder = sidebarFolders.find((f) => folderPath.startsWith(f.path));
+        if (rootFolder && rootFolder.path !== folderPath) {
+          await refreshSidebarFolder(rootFolder.path);
+        }
         await openFilePath(res.path);
+        persistCurrentSession();
       }
     } catch (err) {
       console.error('Failed to create file in folder:', err);
+    }
+  }
+
+  async function handleCreateSubfolder(parentPath: string, folderName: string) {
+    try {
+      const newDirPath = await CreateNewDirectory(parentPath, folderName);
+      if (newDirPath) {
+        const rootFolder = sidebarFolders.find((f) => parentPath.startsWith(f.path));
+        if (rootFolder) {
+          await refreshSidebarFolder(rootFolder.path);
+        } else {
+          await refreshAllSidebarFolders();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create subfolder:', err);
     }
   }
 
@@ -560,7 +774,16 @@
   async function handleDropExternalFiles(paths: string[]) {
     if (paths && paths.length > 0) {
       for (const p of paths) {
-        await openFilePath(p);
+        try {
+          const isDir = await IsDirectory(p);
+          if (isDir) {
+            await handleAddFolder(p);
+          } else {
+            await openFilePath(p);
+          }
+        } catch {
+          await openFilePath(p);
+        }
       }
     }
   }
@@ -785,6 +1008,7 @@
               activeNote.content = newContent;
               activeNote.isDirty = true;
               activeNote.preview = cleanPreview(newContent);
+              activeNote.tags = extractTags(newContent);
               notes = [...notes];
             }
           },
@@ -807,12 +1031,29 @@
     try {
       const ws = await GetWorkspaceInfo();
       if (ws) {
-        if (ws.currentDir) {
+        const combinedFolderPaths = new Set<string>();
+        if (ws.folders && ws.folders.length > 0) {
+          for (const f of ws.folders) combinedFolderPaths.add(f);
+        }
+        for (const f of sidebarFolders) combinedFolderPaths.add(f.path);
+        if (ws.currentDir && ws.currentDir !== '') {
           currentFolder = ws.currentDir;
+          combinedFolderPaths.add(ws.currentDir);
         }
-        if (ws.initialTree && ws.initialTree.length > 0) {
-          folderTree = ws.initialTree;
+
+        const loadedFolders: SidebarFolder[] = [];
+        for (const p of combinedFolderPaths) {
+          const name = p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
+          try {
+            const tree = await ReadDirectoryTree(p, 6);
+            loadedFolders.push({ path: p, name, tree: tree || [] });
+            WatchDirectory(p).catch(() => {});
+          } catch {}
         }
+        if (loadedFolders.length > 0) {
+          saveSidebarFolders(loadedFolders);
+        }
+
         if (ws.initialFiles && ws.initialFiles.length > 0) {
           for (const file of ws.initialFiles) {
             await openFilePath(file);
@@ -824,10 +1065,19 @@
     }
 
     // Listen for files dropped onto the window
-    OnFileDrop((x: number, y: number, paths: string[]) => {
+    OnFileDrop(async (x: number, y: number, paths: string[]) => {
       if (paths && paths.length > 0) {
-        for (const file of paths) {
-          openFilePath(file);
+        for (const p of paths) {
+          try {
+            const isDir = await IsDirectory(p);
+            if (isDir) {
+              await handleAddFolder(p);
+            } else {
+              await openFilePath(p);
+            }
+          } catch {
+            await openFilePath(p);
+          }
         }
       }
     }, true);
@@ -836,9 +1086,23 @@
     EventsOn('cli:open-files', async (files: string[]) => {
       if (files && files.length > 0) {
         for (const file of files) {
-          await openFilePath(file);
+          try {
+            const isDir = await IsDirectory(file);
+            if (isDir) {
+              await handleAddFolder(file);
+            } else {
+              await openFilePath(file);
+            }
+          } catch {
+            await openFilePath(file);
+          }
         }
       }
+    });
+
+    // Listen for external workspace changes (files created/deleted)
+    EventsOn('workspace:modified', async () => {
+      await refreshAllSidebarFolders();
     });
 
     // Listen for external file modifications
@@ -867,6 +1131,7 @@
       window.removeEventListener('beforeunload', handleBeforeUnload);
     }
     OnFileDropOff();
+    EventsOff('workspace:modified');
     EventsOff('cli:open-files');
     EventsOff('file:modified');
     if (editorInstance) {
@@ -901,11 +1166,26 @@
       isOpen={sidebarOpen}
       activeId={activeNoteId}
       {recentItems}
+      folders={sidebarFolders}
+      bind:activeTagFilter
+      onSelectTagFilter={handleSelectTagFilter}
+      onAddTagToNote={handleAddTagToNote}
       onSelectNote={handleSelectRecent}
       onCloseNote={handleCloseRecent}
-      onNewNote={() => addNote()}
+      onNewNote={(folderPath) => {
+        if (folderPath) {
+          handleCreateFileInFolder(folderPath, 'Untitled.md');
+        } else {
+          addNote();
+        }
+      }}
       onOpenFile={handleOpenFile}
       onOpenFolder={handleOpenFolder}
+      onAddFolder={handleAddFolder}
+      onRemoveFolder={handleRemoveFolder}
+      onRefreshFolder={handleRefreshFolder}
+      onCreateFileInFolder={handleCreateFileInFolder}
+      onCreateSubfolder={handleCreateSubfolder}
       onToggleSidebar={toggleSidebar}
       onFind={() => { showQuickSwitcher = true; }}
       onExport={handleExportHTML}
@@ -972,6 +1252,16 @@
           </button>
         </div>
       </header>
+
+      {#if activeNote}
+        <TagBar
+          tags={activeNote.tags || []}
+          {allWorkspaceTags}
+          onAddTag={handleAddActiveTag}
+          onRemoveTag={handleRemoveActiveTag}
+          onSelectTagFilter={handleSelectTagFilter}
+        />
+      {/if}
 
       <!-- Editor Container -->
       <main class="editor-container">

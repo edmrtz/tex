@@ -62,6 +62,7 @@ export namespace main {
 	}
 	export class SessionData {
 	    lastFolder: string;
+	    folders: string[];
 	    openFiles: string[];
 	    activeFile: string;
 	
@@ -72,12 +73,14 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.lastFolder = source["lastFolder"];
+	        this.folders = source["folders"];
 	        this.openFiles = source["openFiles"];
 	        this.activeFile = source["activeFile"];
 	    }
 	}
 	export class WorkspaceInfo {
 	    currentDir: string;
+	    folders: string[];
 	    initialFiles: string[];
 	    initialTree: FileItem[];
 	
@@ -88,6 +91,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.currentDir = source["currentDir"];
+	        this.folders = source["folders"];
 	        this.initialFiles = source["initialFiles"];
 	        this.initialTree = this.convertValues(source["initialTree"], FileItem);
 	    }

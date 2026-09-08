@@ -19,6 +19,7 @@ import (
 // SessionData stores state of open workspace and files
 type SessionData struct {
 	LastFolder string   `json:"lastFolder"`
+	Folders    []string `json:"folders"`
 	OpenFiles  []string `json:"openFiles"`
 	ActiveFile string   `json:"activeFile"`
 }
@@ -45,6 +46,7 @@ type FileItem struct {
 // WorkspaceInfo represents initial workspace and folder status
 type WorkspaceInfo struct {
 	CurrentDir   string     `json:"currentDir"`
+	Folders      []string   `json:"folders"`
 	InitialFiles []string   `json:"initialFiles"`
 	InitialTree  []FileItem `json:"initialTree"`
 }
@@ -255,9 +257,10 @@ func getSessionFilePath() string {
 }
 
 // SaveSession persists open workspace and open files
-func (a *App) SaveSession(folder string, files []string, activeFile string) error {
+func (a *App) SaveSession(folder string, folders []string, files []string, activeFile string) error {
 	session := SessionData{
 		LastFolder: folder,
+		Folders:    folders,
 		OpenFiles:  files,
 		ActiveFile: activeFile,
 	}
@@ -267,6 +270,67 @@ func (a *App) SaveSession(folder string, files []string, activeFile string) erro
 	}
 	return os.WriteFile(getSessionFilePath(), data, 0644)
 }
+
+// CreateNewDirectory creates a directory inside targetDir
+func (a *App) CreateNewDirectory(targetDir string, dirName string) (string, error) {
+	if targetDir == "" {
+		targetDir = a.currentDir
+		if targetDir == "" {
+			cwd, err := os.Getwd()
+			if err == nil {
+				targetDir = cwd
+			}
+		}
+	}
+	trimmed := strings.TrimSpace(dirName)
+	if trimmed == "" {
+		return "", fmt.Errorf("folder name cannot be empty")
+	}
+	fullPath := filepath.Join(targetDir, trimmed)
+	if err := os.MkdirAll(fullPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+	return fullPath, nil
+}
+
+// IsDirectory checks whether targetPath is an existing directory
+func (a *App) IsDirectory(targetPath string) (bool, error) {
+	clean := filepath.Clean(targetPath)
+	abs, err := filepath.Abs(clean)
+	if err != nil {
+		abs = clean
+	}
+	fi, err := os.Stat(abs)
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}
+
+// WatchDirectory adds directory to fsnotify watcher
+func (a *App) WatchDirectory(dirPath string) {
+	if a.watcher == nil {
+		return
+	}
+	absPath, err := filepath.Abs(filepath.Clean(dirPath))
+	if err != nil {
+		return
+	}
+	_ = a.watcher.Add(absPath)
+}
+
+// UnwatchDirectory removes directory from fsnotify watcher
+func (a *App) UnwatchDirectory(dirPath string) {
+	if a.watcher == nil {
+		return
+	}
+	absPath, err := filepath.Abs(filepath.Clean(dirPath))
+	if err != nil {
+		return
+	}
+	_ = a.watcher.Remove(absPath)
+}
+
 
 // LoadSession reads previous session state
 func (a *App) LoadSession() (*SessionData, error) {
@@ -429,7 +493,7 @@ func (a *App) ReadDirectoryTree(dirPath string, maxDepth int) ([]FileItem, error
 	}
 
 	if maxDepth <= 0 {
-		maxDepth = 3
+		maxDepth = 6
 	}
 
 	return a.readTreeRecursive(absPath, 1, maxDepth)
@@ -451,7 +515,7 @@ func (a *App) readTreeRecursive(currentDir string, depth, maxDepth int) ([]FileI
 	for _, entry := range entries {
 		name := entry.Name()
 		// Skip hidden files, system files, and common build/dep folders
-		if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "dist" || name == "build" {
+		if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "dist" || name == "build" || name == "target" || name == ".git" {
 			continue
 		}
 
@@ -463,16 +527,16 @@ func (a *App) readTreeRecursive(currentDir string, depth, maxDepth int) ([]FileI
 
 		if entry.IsDir() {
 			children, _ := a.readTreeRecursive(fullPath, depth+1, maxDepth)
-			// Only include directories that contain markdown files
-			if len(children) > 0 {
-				dirs = append(dirs, FileItem{
-					Path:     fullPath,
-					Name:     name,
-					IsDir:    true,
-					Children: children,
-					ModTime:  info.ModTime().UnixMilli(),
-				})
+			if children == nil {
+				children = []FileItem{}
 			}
+			dirs = append(dirs, FileItem{
+				Path:     fullPath,
+				Name:     name,
+				IsDir:    true,
+				Children: children,
+				ModTime:  info.ModTime().UnixMilli(),
+			})
 		} else {
 			ext := strings.ToLower(filepath.Ext(name))
 			if ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".txt" {
@@ -505,12 +569,17 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 	}
 
 	folder := cwd
+	var folders []string
 	var files []string
+
 	if len(a.initialFiles) > 0 {
 		for _, f := range a.initialFiles {
 			fi, err := os.Stat(f)
 			if err == nil && fi.IsDir() {
-				folder = f
+				folders = append(folders, f)
+				if folder == "" || folder == cwd {
+					folder = f
+				}
 			} else {
 				files = append(files, f)
 			}
@@ -519,9 +588,24 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 		// Restore previous session if available
 		session, err := a.LoadSession()
 		if err == nil && session != nil {
+			for _, f := range session.Folders {
+				if fi, err := os.Stat(f); err == nil && fi.IsDir() {
+					folders = append(folders, f)
+				}
+			}
 			if session.LastFolder != "" {
 				if fi, err := os.Stat(session.LastFolder); err == nil && fi.IsDir() {
 					folder = session.LastFolder
+					hasFolder := false
+					for _, existing := range folders {
+						if existing == session.LastFolder {
+							hasFolder = true
+							break
+						}
+					}
+					if !hasFolder {
+						folders = append(folders, session.LastFolder)
+					}
 				}
 			}
 			for _, f := range session.OpenFiles {
@@ -532,14 +616,19 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 		}
 	}
 
+	if (folder == "" || folder == cwd) && len(folders) > 0 {
+		folder = folders[0]
+	}
+
 	var tree []FileItem
 	if folder != "" {
 		a.currentDir = folder
-		tree, _ = a.ReadDirectoryTree(folder, 3)
+		tree, _ = a.ReadDirectoryTree(folder, 6)
 	}
 
 	return &WorkspaceInfo{
 		CurrentDir:   folder,
+		Folders:      folders,
 		InitialFiles: files,
 		InitialTree:  tree,
 	}, nil
@@ -678,15 +767,17 @@ func (a *App) UnwatchFile(filePath string) {
 }
 
 func (a *App) runFileWatcher() {
+	var lastWorkspaceNotify int64
 	for {
 		select {
 		case event, ok := <-a.watcher.Events:
 			if !ok {
 				return
 			}
-			if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
-				cleanEventPath := filepath.Clean(event.Name)
+			cleanEventPath := filepath.Clean(event.Name)
+			now := time.Now().UnixMilli()
 
+			if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
 				a.watchMu.Lock()
 				lastMod, watched := a.watchedFiles[cleanEventPath]
 				if watched {
@@ -704,8 +795,17 @@ func (a *App) runFileWatcher() {
 				}
 				a.watchMu.Unlock()
 			}
+
+			// If files or folders are created, removed, or renamed, notify workspace listeners
+			if event.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+				if now-lastWorkspaceNotify > 400 {
+					lastWorkspaceNotify = now
+					runtime.EventsEmit(a.ctx, "workspace:modified", cleanEventPath)
+				}
+			}
 		case <-a.watcher.Errors:
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
+

@@ -1,4 +1,4 @@
-.PHONY: dev build build-linux build-windows install-linux install-desktop package-linux clean
+.PHONY: dev build build-linux build-windows install-linux install-desktop build-desktop package-linux clean
 
 WAILS := $(shell which wails 2>/dev/null || echo $(HOME)/go/bin/wails)
 PREFIX ?= $(HOME)/.local
@@ -32,6 +32,8 @@ install-desktop: install-linux
 	@command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -f -q $(PREFIX)/share/icons/hicolor || true
 	@command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database $(PREFIX)/share/applications || true
 	@echo "Installed desktop entry and icons to $(PREFIX)/share"
+
+build-desktop: install-desktop
 
 package-linux: build-linux
 	mkdir -p build/dist/tex-linux-amd64
