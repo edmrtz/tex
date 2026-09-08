@@ -1135,7 +1135,6 @@
     min-height: 36px;
     padding: 0 10px;
     background-color: var(--bg-header);
-    border-bottom: 1px solid var(--border);
     user-select: none;
     font-family: var(--font-mono);
   }
@@ -1169,14 +1168,11 @@
     align-items: center;
     gap: 6px;
     max-width: calc(100% - 240px);
-    padding: 3px 10px;
-    background: var(--bg-hover);
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    padding: 3px 6px;
+    background: transparent;
     user-select: none;
     z-index: 1;
     pointer-events: auto;
-    transition: background-color 0.12s ease, border-color 0.12s ease;
     animation: tabFadeIn 0.15s ease-out;
   }
 
