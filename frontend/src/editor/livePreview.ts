@@ -163,6 +163,112 @@ class CalloutHeaderWidget extends WidgetType {
   }
 }
 
+export interface ParsedTable {
+  headers: string[];
+  alignments: ('left' | 'center' | 'right' | '')[];
+  rows: string[][];
+}
+
+export function parseMarkdownTable(text: string): ParsedTable | null {
+  const lines = text.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) return null;
+
+  function splitRow(line: string): string[] {
+    let cleaned = line.trim();
+    if (cleaned.startsWith('|')) cleaned = cleaned.slice(1);
+    if (cleaned.endsWith('|')) cleaned = cleaned.slice(0, -1);
+    return cleaned
+      .split(/(?<!\\)\|/)
+      .map((c) => c.trim().replace(/\\\|/g, '|'));
+  }
+
+  const headers = splitRow(lines[0]);
+  const delimiters = splitRow(lines[1]);
+  const alignments: ('left' | 'center' | 'right' | '')[] = delimiters.map((d) => {
+    const trimmed = d.trim();
+    const left = trimmed.startsWith(':');
+    const right = trimmed.endsWith(':');
+    if (left && right) return 'center';
+    if (right) return 'right';
+    if (left) return 'left';
+    return '';
+  });
+
+  const rows: string[][] = [];
+  for (let i = 2; i < lines.length; i++) {
+    rows.push(splitRow(lines[i]));
+  }
+
+  return { headers, alignments, rows };
+}
+
+export class TableWidget extends WidgetType {
+  constructor(readonly rawText: string) {
+    super();
+  }
+
+  eq(other: TableWidget): boolean {
+    return other.rawText === this.rawText;
+  }
+
+  toDOM(): HTMLElement {
+    const table = document.createElement('table');
+    table.className = 'cm-table';
+
+    const parsed = parseMarkdownTable(this.rawText);
+    if (!parsed) {
+      table.textContent = this.rawText;
+      return table;
+    }
+
+    const { headers, alignments, rows } = parsed;
+
+    const thead = document.createElement('thead');
+    const headerTr = document.createElement('tr');
+    headers.forEach((headerText, i) => {
+      const th = document.createElement('th');
+      th.textContent = headerText;
+      const align = alignments[i];
+      if (align) {
+        th.style.textAlign = align;
+      }
+      headerTr.appendChild(th);
+    });
+    thead.appendChild(headerTr);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      row.forEach((cellText, i) => {
+        const td = document.createElement('td');
+        td.textContent = cellText;
+        const align = alignments[i];
+        if (align) {
+          td.style.textAlign = align;
+        }
+        tr.appendChild(td);
+      });
+      for (let i = row.length; i < headers.length; i++) {
+        const td = document.createElement('td');
+        const align = alignments[i];
+        if (align) {
+          td.style.textAlign = align;
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    return table;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 // Check if cursor or selection is strictly inside [from, to] (inclusive of boundaries)
 function cursorInside(state: EditorState, from: number, to: number): boolean {
   for (const range of state.selection.ranges) {
@@ -242,6 +348,23 @@ function computeDecorations(state: EditorState): DecorationSet {
 
       // If this AST node is within a block that was already replaced (like Mermaid or Block Math), skip it
       if (isOccupied(nodeFrom, nodeTo)) return;
+      // Table rendering in Live Preview
+      if (nodeName === 'Table') {
+        const hasCursor = cursorInside(state, nodeFrom, nodeTo);
+        if (!hasCursor) {
+          const rawTable = state.doc.sliceString(nodeFrom, nodeTo);
+          addReplacement(
+            nodeFrom,
+            nodeTo,
+            Decoration.replace({
+              widget: new TableWidget(rawTable),
+              block: true,
+            })
+          );
+          return;
+        }
+      }
+
 
       // Fenced Code Blocks (```language ... ``` and ```mermaid ... ```)
       if (nodeName === 'FencedCode') {
@@ -744,6 +867,23 @@ export const livePreviewTheme = EditorView.baseTheme({
     padding: '1px 4px',
     borderRadius: '0px',
     borderBottom: '1px solid rgba(234, 179, 8, 0.6)',
+  },
+  '.cm-table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    margin: '12px 0',
+    fontSize: '0.95em',
+  },
+  '.cm-table th': {
+    backgroundColor: 'var(--bg-code-header, #1f1f26)',
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    padding: '6px 12px',
+    fontWeight: '600',
+  },
+  '.cm-table td': {
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    padding: '6px 12px',
+    backgroundColor: 'var(--bg-code, #18181d)',
   },
 });
 

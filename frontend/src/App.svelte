@@ -64,7 +64,6 @@
     theme: 'dark',
     uiFont: 'system',
     monoFont: 'default',
-    lineNumbers: false,
     vimMode: false,
     fontSize: 15,
     editorWidth: 'full',
@@ -1048,9 +1047,7 @@
         for (const f of sidebarFolders) combinedFolderPaths.add(f.path);
         if (ws.currentDir && ws.currentDir !== '') {
           currentFolder = ws.currentDir;
-          combinedFolderPaths.add(ws.currentDir);
         }
-
         const loadedFolders: SidebarFolder[] = [];
         for (const p of combinedFolderPaths) {
           const name = p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
@@ -1298,13 +1295,6 @@
         />
         <div class="cm-editor-wrapper" bind:this={editorContainerEl}></div>
 
-        {#if settings.showWordCount !== false && activeNote}
-          <div class="stats-badge" title="{cursorInfo.charCount} chars, line {cursorInfo.line}, col {cursorInfo.col}">
-            <span>{cursorInfo.wordCount} words</span>
-            <span class="stat-sep">·</span>
-            <span>{Math.max(1, Math.ceil(cursorInfo.wordCount / 200))} min read</span>
-          </div>
-        {/if}
       </main>
     </div>
   </div>
@@ -1582,41 +1572,6 @@
     overflow: hidden;
   }
 
-  .stats-badge {
-    position: absolute;
-    bottom: 10px;
-    right: 18px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 2px 7px;
-    font-size: 10.5px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    border-radius: 0px;
-    pointer-events: none;
-    z-index: 10;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    animation: statsFadeIn 0.2s ease-out;
-  }
-
-  @keyframes statsFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(3px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .stat-sep {
-    opacity: 0.4;
-  }
 
   /* Zen Mode */
   .zen-mode-active .document-header {
@@ -1675,7 +1630,6 @@
     }
     .tui-window-titlebar,
     .document-header,
-    .stats-badge,
     :global(.sidebar) {
       display: none !important;
     }
@@ -1804,8 +1758,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .modal-overlay,
-    .modal-card,
-    .stats-badge,
     .document-tab-center {
       animation: none !important;
     }

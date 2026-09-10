@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AppSettings } from '../types';
-  import { X, Moon, Sun, Hash, Terminal } from '@lucide/svelte';
+  import { X } from '@lucide/svelte';
 
   let {
     isOpen,
@@ -239,19 +239,8 @@
           </div>
         </div>
 
-        <!-- Section: Line Numbers, Vim, & Stats -->
+        <!-- Section: Vim Navigation -->
         <div class="tui-toggle-row">
-          <div class="toggle-item">
-            <button
-              class="tui-option-btn full-width"
-              class:selected={draft.lineNumbers}
-              onclick={() => update('lineNumbers', !draft.lineNumbers)}
-              type="button"
-            >
-              <span class="indicator">{draft.lineNumbers ? '[x]' : '[ ]'}</span>
-              <span>Line Numbers</span>
-            </button>
-          </div>
           <div class="toggle-item">
             <button
               class="tui-option-btn full-width"
@@ -261,19 +250,6 @@
             >
               <span class="indicator">{draft.vimMode ? '[x]' : '[ ]'}</span>
               <span>Vim Navigation</span>
-            </button>
-          </div>
-        </div>
-        <div class="tui-toggle-row" style="margin-top: 8px;">
-          <div class="toggle-item">
-            <button
-              class="tui-option-btn full-width"
-              class:selected={draft.showWordCount !== false}
-              onclick={() => update('showWordCount', draft.showWordCount === false ? true : false)}
-              type="button"
-            >
-              <span class="indicator">{draft.showWordCount !== false ? '[x]' : '[ ]'}</span>
-              <span>Document Statistics</span>
             </button>
           </div>
         </div>
@@ -424,7 +400,7 @@
 
   .tui-toggle-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
     padding-top: 4px;
   }

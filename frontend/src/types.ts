@@ -57,9 +57,7 @@ export interface AppSettings {
   theme: 'dark' | 'light';
   uiFont: 'system' | 'inter' | 'serif';
   monoFont: 'default' | 'jetbrains' | 'fira' | 'consolas';
-  lineNumbers: boolean;
   vimMode: boolean;
   fontSize: number;
   editorWidth: 'full' | 'wide' | 'centered';
-  showWordCount?: boolean;
 }

@@ -133,8 +133,8 @@ export function extractFrontmatterTags(frontmatterText: string): string[] {
 
 /**
  * Extracts inline #tags from markdown content, avoiding:
+ * - Lines starting with # (headings, line-starting #text, etc.)
  * - Fenced code blocks and inline code
- * - Markdown headings (# Heading)
  * - Markdown links and URLs
  * - Color hex codes
  */
@@ -144,11 +144,13 @@ export function extractInlineTags(bodyContent: string): string[] {
 
   // Remove fenced code blocks
   let text = bodyContent.replace(/```[\s\S]*?```/g, ' ');
+  // Strip any line that starts with # (headings, line-starting #text, etc.)
+  // Lines starting with # MUST NEVER be treated as tags
+  text = text.replace(/^\s*#.*$/gm, ' ');
   // Remove inline code
   text = text.replace(/`[^`\n]*`/g, ' ');
   // Remove markdown links e.g. [text](url#anchor)
   text = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
-
   // Match #tag patterns:
   // Must be preceded by start of line, whitespace, or punctuation like ( [ {
   // Must start with # and a letter or number containing letters (e.g. #project, #tag-1, #v1/sub)

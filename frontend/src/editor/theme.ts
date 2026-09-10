@@ -306,6 +306,29 @@ export const editorThemeDark = EditorView.theme({
     borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     margin: '16px 0',
   },
+  // Tables
+  '.cm-table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    margin: '12px 0',
+    fontSize: '0.95em',
+  },
+  '.cm-table th': {
+    backgroundColor: 'var(--bg-code-header, #1f1f26)',
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    padding: '6px 12px',
+    fontWeight: '600',
+    color: 'var(--text-main, #e4e4e7)',
+  },
+  '.cm-table td': {
+    border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+    padding: '6px 12px',
+    backgroundColor: 'var(--bg-code, #18181d)',
+    color: 'var(--text-main, #e4e4e7)',
+  },
+  '.cm-table tbody tr:nth-child(even) td': {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
   '.cm-task-checkbox': {
     marginRight: '8px',
     cursor: 'pointer',
@@ -695,6 +718,29 @@ export const editorThemeLight = EditorView.theme({
     border: 'none',
     borderTop: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     margin: '16px 0',
+  },
+  // Tables
+  '.cm-table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    margin: '12px 0',
+    fontSize: '0.95em',
+  },
+  '.cm-table th': {
+    backgroundColor: 'var(--bg-code-header, #eaeaf0)',
+    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    padding: '6px 12px',
+    fontWeight: '600',
+    color: 'var(--text-main, #18181b)',
+  },
+  '.cm-table td': {
+    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
+    padding: '6px 12px',
+    backgroundColor: 'var(--bg-code, #fbfbfd)',
+    color: 'var(--text-main, #18181b)',
+  },
+  '.cm-table tbody tr:nth-child(even) td': {
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
   '.cm-task-checkbox': {
     marginRight: '8px',

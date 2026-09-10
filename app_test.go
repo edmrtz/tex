@@ -112,3 +112,54 @@ func TestSessionFolders(t *testing.T) {
 		t.Errorf("Expected active file %s, got %s", active, loaded.ActiveFile)
 	}
 }
+
+func TestCLIFolderSupport(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "tex-cli-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	facultadDir := filepath.Join(tempDir, "Facultad")
+	err = os.MkdirAll(facultadDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	testNote := filepath.Join(tempDir, "Note.md")
+	err = os.WriteFile(testNote, []byte("# Hello"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test note: %v", err)
+	}
+
+	// Test 1: CLI folder with trailing slash and a file
+	app := NewApp([]string{facultadDir + "/", testNote})
+	ws, err := app.GetWorkspaceInfo()
+	if err != nil {
+		t.Fatalf("GetWorkspaceInfo failed: %v", err)
+	}
+
+	cleanFacultad := filepath.Clean(facultadDir)
+	if len(ws.Folders) != 1 || ws.Folders[0] != cleanFacultad {
+		t.Errorf("Expected ws.Folders to contain [%s], got %v", cleanFacultad, ws.Folders)
+	}
+	if len(ws.InitialFiles) != 1 || ws.InitialFiles[0] != testNote {
+		t.Errorf("Expected ws.InitialFiles to contain [%s], got %v", testNote, ws.InitialFiles)
+	}
+	if ws.CurrentDir != cleanFacultad {
+		t.Errorf("Expected ws.CurrentDir to be %s, got %s", cleanFacultad, ws.CurrentDir)
+	}
+
+	// Test 2: CLI folder only (without trailing slash)
+	app2 := NewApp([]string{facultadDir})
+	ws2, err := app2.GetWorkspaceInfo()
+	if err != nil {
+		t.Fatalf("GetWorkspaceInfo failed: %v", err)
+	}
+	if len(ws2.Folders) != 1 || ws2.Folders[0] != cleanFacultad {
+		t.Errorf("Expected ws2.Folders to contain [%s], got %v", cleanFacultad, ws2.Folders)
+	}
+	if len(ws2.InitialFiles) != 0 {
+		t.Errorf("Expected ws2.InitialFiles to be empty, got %v", ws2.InitialFiles)
+	}
+}

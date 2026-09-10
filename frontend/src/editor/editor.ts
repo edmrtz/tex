@@ -9,14 +9,14 @@ import {
   highlightActiveLine,
   dropCursor,
   drawSelection,
-  lineNumbers,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { search, highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { Table } from '@lezer/markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
-import { vim } from '@replit/codemirror-vim';
+import { vim, Vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
 import { createMarkdownAutocompleteExtension } from './completions';
 import {
@@ -50,7 +50,7 @@ export function createMarkdownEditor(
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
   const fontCompartment = new Compartment();
-  const lineNumbersCompartment = new Compartment();
+  const cursorVisibilityCompartment = new Compartment();
   const vimCompartment = new Compartment();
   const widthCompartment = new Compartment();
   const readOnlyCompartment = new Compartment();
@@ -78,12 +78,24 @@ export function createMarkdownEditor(
     return createEditorWidthTheme(w);
   }
 
-  function getLineNumbersExtension(enabled: boolean): Extension {
-    return enabled ? lineNumbers() : [];
+  function getCursorVisibilityExtension(m: EditorMode): Extension {
+    return m === 'live'
+      ? EditorView.theme({
+          '.cm-cursorLayer, .cm-cursor': {
+            display: 'none !important',
+          },
+        })
+      : [];
   }
 
   function getVimExtension(enabled: boolean): Extension {
-    return enabled ? vim() : [];
+    if (enabled) {
+      Vim.defineEx('write', 'w', () => callbacks.onSaveShortcut());
+      Vim.defineEx('w', 'w', () => callbacks.onSaveShortcut());
+      Vim.map('jk', '<Esc>', 'insert');
+      return vim();
+    }
+    return [];
   }
 
   const updateListener = EditorView.updateListener.of((update) => {
@@ -292,6 +304,8 @@ export function createMarkdownEditor(
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
+      vimCompartment.of(getVimExtension(settings.vimMode)),
+      cursorVisibilityCompartment.of(getCursorVisibilityExtension(mode)),
       history(),
       dropCursor(),
       drawSelection({ cursorBlinkRate: 1050 }),
@@ -302,13 +316,12 @@ export function createMarkdownEditor(
       keymap.of([...defaultKeymap, ...historyKeymap]),
       markdown({
         base: markdownLanguage,
+        extensions: [Table],
         codeLanguages: languages,
         addKeymap: true,
       }),
       createMarkdownAutocompleteExtension(callbacks.getWorkspaceFiles),
       domEventHandlers,
-      vimCompartment.of(getVimExtension(settings.vimMode)),
-      lineNumbersCompartment.of(getLineNumbersExtension(settings.lineNumbers)),
       widthCompartment.of(getWidthExtension(settings.editorWidth)),
       modeCompartment.of(getModeExtension(mode)),
       themeCompartment.of(getThemeExtension(settings.theme)),
@@ -338,6 +351,7 @@ export function createMarkdownEditor(
       view.dispatch({
         effects: [
           modeCompartment.reconfigure(getModeExtension(newMode)),
+          cursorVisibilityCompartment.reconfigure(getCursorVisibilityExtension(newMode)),
           readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly || newMode === 'live')),
         ],
       });
@@ -348,7 +362,6 @@ export function createMarkdownEditor(
           themeCompartment.reconfigure(getThemeExtension(newSettings.theme)),
           highlightCompartment.reconfigure(getHighlightExtension(newSettings.theme)),
           fontCompartment.reconfigure(getFontExtension(newSettings)),
-          lineNumbersCompartment.reconfigure(getLineNumbersExtension(newSettings.lineNumbers)),
           vimCompartment.reconfigure(getVimExtension(newSettings.vimMode)),
           widthCompartment.reconfigure(getWidthExtension(newSettings.editorWidth)),
         ],

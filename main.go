@@ -5,7 +5,7 @@ import (
 	"embed"
 	"os"
 	"path/filepath"
-
+	"strings"
 	"tex/ipc"
 
 	"github.com/wailsapp/wails/v2"
@@ -27,14 +27,15 @@ func main() {
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args[1:] {
 			if arg != "" && arg[0] != '-' {
+				isDir := strings.HasSuffix(arg, "/") || strings.HasSuffix(arg, "\\")
 				abs, err := filepath.Abs(arg)
 				if err == nil {
-					// Create file if it does not exist already
-					if fi, statErr := os.Stat(abs); os.IsNotExist(statErr) {
+					fi, statErr := os.Stat(abs)
+					if isDir || (statErr == nil && fi.IsDir()) {
+						_ = os.MkdirAll(abs, 0755)
+					} else if os.IsNotExist(statErr) {
 						_ = os.MkdirAll(filepath.Dir(abs), 0755)
 						_ = os.WriteFile(abs, []byte(""), 0644)
-					} else if statErr == nil && fi.IsDir() {
-						// directory
 					}
 					cliFiles = append(cliFiles, abs)
 				} else {
@@ -58,11 +59,12 @@ func main() {
 
 	_, _ = ipc.StartServer(ipcCtx, func(receivedFiles []string) {
 		for _, f := range receivedFiles {
-			if fi, statErr := os.Stat(f); os.IsNotExist(statErr) {
+			isDir := strings.HasSuffix(f, "/") || strings.HasSuffix(f, "\\")
+			if fi, statErr := os.Stat(f); isDir || (statErr == nil && fi.IsDir()) {
+				_ = os.MkdirAll(f, 0755)
+			} else if os.IsNotExist(statErr) {
 				_ = os.MkdirAll(filepath.Dir(f), 0755)
 				_ = os.WriteFile(f, []byte(""), 0644)
-			} else if statErr == nil && fi.IsDir() {
-				// dir
 			}
 		}
 		if app.ctx != nil {

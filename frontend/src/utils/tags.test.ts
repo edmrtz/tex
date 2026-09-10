@@ -90,6 +90,19 @@ Link [Google](https://google.com#anchor) should be ignored.
 `;
 deepEqual(extractTags(docWithInlineTags), ['dev-log', 'project/v1', 'test']);
 
+// Lines starting with # (headings, line-starting hashes) are never treated as tags
+const docWithHeadingsAndLineHashes = `
+# Heading
+#TextStartingWithHash
+## Subheading
+This is #real-tag here
+`;
+deepEqual(extractTags(docWithHeadingsAndLineHashes), ['real-tag']);
+deepEqual(extractTags('# Heading'), []);
+deepEqual(extractTags('#TextStartingWithHash'), []);
+deepEqual(extractTags('## Subheading'), []);
+deepEqual(extractTags('This is #real-tag here'), ['real-tag']);
+
 // 5. Adding Tags to Markdown Content
 // Case A: No existing frontmatter
 const rawDoc = '# My Note\nJust regular markdown text.';

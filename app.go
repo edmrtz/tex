@@ -574,11 +574,12 @@ func (a *App) GetWorkspaceInfo() (*WorkspaceInfo, error) {
 
 	if len(a.initialFiles) > 0 {
 		for _, f := range a.initialFiles {
-			fi, err := os.Stat(f)
+			clean := filepath.Clean(f)
+			fi, err := os.Stat(clean)
 			if err == nil && fi.IsDir() {
-				folders = append(folders, f)
+				folders = append(folders, clean)
 				if folder == "" || folder == cwd {
-					folder = f
+					folder = clean
 				}
 			} else {
 				files = append(files, f)

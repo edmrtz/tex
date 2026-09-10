@@ -1,7 +1,5 @@
 import {
   autocompletion,
-  snippet,
-  completeAnyWord,
   type Completion,
   type CompletionContext,
   type CompletionResult,
@@ -43,7 +41,7 @@ export const MERMAID_DIAGRAM_SNIPPETS: MermaidSnippetDef[] = [
     name: 'flowchart',
     label: 'flowchart',
     detail: 'Mermaid flowchart TD diagram',
-    content: 'flowchart TD\n  Start[Start] --> Process[Process] --> End[End]',
+    content: 'flowchart TD\n  Start --> End',
   },
   {
     name: 'sequence',
@@ -109,172 +107,125 @@ export const GITHUB_CALLOUTS: CalloutDef[] = [
   { name: 'CAUTION', label: '> [!CAUTION]', detail: 'Caution callout' },
 ];
 
+export interface SlashCommandDef {
+  label: string;
+  detail: string;
+  apply: string;
+}
+
+export const SLASH_COMMANDS: SlashCommandDef[] = [
+  // Headings
+  { label: '/h1', detail: 'Heading 1', apply: '# ' },
+  { label: '/h2', detail: 'Heading 2', apply: '## ' },
+  { label: '/h3', detail: 'Heading 3', apply: '### ' },
+  { label: '/h4', detail: 'Heading 4', apply: '#### ' },
+  { label: '/h5', detail: 'Heading 5', apply: '##### ' },
+  { label: '/h6', detail: 'Heading 6', apply: '###### ' },
+
+  // Mermaid diagrams
+  {
+    label: '/mermaid',
+    detail: 'Mermaid flowchart diagram',
+    apply: '```mermaid\nflowchart TD\n  Start --> End\n```',
+  },
+  {
+    label: '/mermaid:flowchart',
+    detail: 'Mermaid flowchart diagram',
+    apply: '```mermaid\nflowchart TD\n  Start --> End\n```',
+  },
+  {
+    label: '/mermaid:sequence',
+    detail: 'Mermaid sequence diagram',
+    apply: '```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello\n```',
+  },
+  {
+    label: '/mermaid:usecase',
+    detail: 'Mermaid usecase diagram',
+    apply: '```mermaid\nusecase-beta\n  actor User\n  system System {\n    usecase Action\n  }\n  User --> Action\n```',
+  },
+  {
+    label: '/mermaid:architecture',
+    detail: 'Mermaid architecture diagram',
+    apply: '```mermaid\narchitecture-beta\n  group api(cloud)[API]\n  service db(database)[DB] in api\n```',
+  },
+  {
+    label: '/mermaid:class',
+    detail: 'Mermaid class diagram',
+    apply: '```mermaid\nclassDiagram\n  class Animal {\n    +String name\n    +makeSound()\n  }\n  class Dog {\n    +bark()\n  }\n  Animal <|-- Dog\n```',
+  },
+  {
+    label: '/mermaid:state',
+    detail: 'Mermaid state diagram',
+    apply: '```mermaid\nstateDiagram-v2\n  [*] --> Still\n  Still --> [*]\n  Still --> Moving\n  Moving --> Still\n  Moving --> Crash\n  Crash --> [*]\n```',
+  },
+  {
+    label: '/mermaid:er',
+    detail: 'Mermaid entity relationship diagram',
+    apply: '```mermaid\nerDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE-ITEM : contains\n```',
+  },
+  {
+    label: '/mermaid:mindmap',
+    detail: 'Mermaid mindmap diagram',
+    apply: '```mermaid\nmindmap\n  root((mindmap))\n    Origins\n      Long history\n      Popularisation\n    Research\n      On effectiveness\n    Tools\n      Pen and paper\n      Mermaid\n```',
+  },
+
+  // Math
+  { label: '/math', detail: 'Inline math ($  $)', apply: '$  $' },
+  { label: '/mathblock', detail: 'Math block ($$)', apply: '$$\n\n$$' },
+  { label: '/math-block', detail: 'Math block ($$)', apply: '$$\n\n$$' },
+
+  // Table & Code
+  {
+    label: '/table',
+    detail: 'Markdown table',
+    apply: '| Column 1 | Column 2 |\n| --- | --- |\n| Item 1 | Item 2 |',
+  },
+  { label: '/code', detail: 'Code block', apply: '```\n\n```' },
+
+  // Callouts
+  { label: '/note', detail: 'Note callout', apply: '> [!NOTE]\n> ' },
+  { label: '/tip', detail: 'Tip callout', apply: '> [!TIP]\n> ' },
+  { label: '/important', detail: 'Important callout', apply: '> [!IMPORTANT]\n> ' },
+  { label: '/warning', detail: 'Warning callout', apply: '> [!WARNING]\n> ' },
+  { label: '/caution', detail: 'Caution callout', apply: '> [!CAUTION]\n> ' },
+
+  // Lists & tasks
+  { label: '/todo', detail: 'Task checklist item', apply: '- [ ] ' },
+  { label: '/task', detail: 'Task checklist item', apply: '- [ ] ' },
+  { label: '/bullet', detail: 'Bullet list item', apply: '- ' },
+  { label: '/list', detail: 'Bullet list item', apply: '- ' },
+  { label: '/num', detail: 'Numbered list item', apply: '1. ' },
+  { label: '/numbered', detail: 'Numbered list item', apply: '1. ' },
+
+  // Other markdown constructs
+  { label: '/quote', detail: 'Blockquote', apply: '> ' },
+  { label: '/hr', detail: 'Horizontal rule divider', apply: '---' },
+  { label: '/divider', detail: 'Horizontal rule divider', apply: '---' },
+  { label: '/link', detail: 'Markdown link', apply: '[text](url)' },
+  { label: '/image', detail: 'Markdown image', apply: '![alt](url)' },
+];
+
 /**
- * Autocompletion source for markdown syntax, code fences, mermaid diagrams,
- * GitHub callouts, markdown templates, and document words.
+ * Autocompletion source for markdown slash commands.
+ * Only triggers when cursor is immediately after a '/' followed by optional command chars.
  */
 export function markdownAutocompleteSource(context: CompletionContext): CompletionResult | null {
-  // 1. If cursor is inside a wiki-link (`[[...`), let the wiki source handle it
-  if (context.matchBefore(/\[\[([^\]]*)/)) {
+  const match = context.matchBefore(/\/([a-zA-Z0-9_\-:]*)/);
+  if (!match) {
     return null;
   }
 
-  // 2. Code fence completions: typing ``` or ```lang
-  const fenceMatch = context.matchBefore(/```[a-zA-Z0-9_-]*/);
-  if (fenceMatch) {
-    const line = context.state.doc.lineAt(context.pos);
-    const textAfter = line.text.slice(context.pos - line.from);
-    const hasClosingFence = textAfter.trim().startsWith('```');
-
-    const options: Completion[] = [
-      ...CODE_FENCE_LANGUAGES.map((lang) => ({
-        label: lang,
-        type: 'type',
-        detail: 'Code fence',
-        apply: hasClosingFence ? lang : snippet(`${lang}\n#{0}\n\`\`\``),
-        boost: 10,
-      })),
-      ...MERMAID_DIAGRAM_SNIPPETS.map((d) => ({
-        label: `mermaid: ${d.name}`,
-        detail: `Mermaid ${d.name} diagram`,
-        type: 'snippet',
-        apply: snippet(`mermaid\n${d.content}\n\`\`\``),
-        boost: 5,
-      })),
-    ];
-
-    return {
-      from: fenceMatch.from + 3,
-      options,
-      validFor: /^[a-zA-Z0-9_-]*$/,
-    };
-  }
-
-  // 3. GitHub callout completions when line starts with blockquote `>`
-  const line = context.state.doc.lineAt(context.pos);
-  const textBeforeInLine = line.text.slice(0, context.pos - line.from);
-  if (/^\s*>/.test(textBeforeInLine)) {
-    const calloutMatch = context.matchBefore(/>\s*(\[!?[A-Za-z]*)?/);
-    if (calloutMatch) {
-      return {
-        from: calloutMatch.from,
-        options: GITHUB_CALLOUTS.map((c) => ({
-          label: c.label,
-          detail: c.detail,
-          type: 'snippet',
-          apply: snippet(`${c.label}\n> #{0}`),
-          boost: 10,
-        })),
-        validFor: /^>\s*(\[!?[A-Za-z]*)?$/,
-      };
-    }
-  }
-
-  // 4. Math block triggered by typing `$$`
-  const mathMatch = context.matchBefore(/\$\$/);
-  if (mathMatch) {
-    return {
-      from: mathMatch.from,
-      options: [
-        {
-          label: '$$',
-          detail: 'Math block',
-          type: 'snippet',
-          apply: snippet('$$\n#{0}\n$$'),
-          boost: 10,
-        },
-      ],
-    };
-  }
-
-  // 5. Task item triggered by typing `- [`
-  const taskMatch = context.matchBefore(/^\s*-\s*\[\s*\]?/);
-  if (taskMatch) {
-    return {
-      from: taskMatch.from,
-      options: [
-        {
-          label: '- [ ] ',
-          detail: 'Task item checklist',
-          type: 'snippet',
-          apply: '- [ ] ',
-          boost: 10,
-        },
-      ],
-    };
-  }
-
-  // 6. Word-level completions (Mermaid snippets, Callouts, Templates, Document words)
-  const wordMatch = context.matchBefore(/[\w-]+/);
-  if (!wordMatch && !context.explicit) {
-    return null;
-  }
-
-  const from = wordMatch ? wordMatch.from : context.pos;
-
-  const generalSnippets: Completion[] = [
-    // Mermaid diagram snippets
-    ...MERMAID_DIAGRAM_SNIPPETS.map((d) => ({
-      label: d.name,
-      detail: d.detail,
-      type: 'snippet',
-      apply: snippet(`\`\`\`mermaid\n${d.content}\n\`\`\``),
-      boost: 6,
-    })),
-    // Callout shortcuts
-    ...GITHUB_CALLOUTS.map((c) => ({
-      label: c.name.toLowerCase(),
-      detail: `${c.label} callout`,
-      type: 'snippet',
-      apply: snippet(`${c.label}\n> #{0}`),
-      boost: 4,
-    })),
-    // Markdown templates
-    {
-      label: 'table',
-      detail: 'Markdown table',
-      type: 'snippet',
-      apply: snippet('| ${1:Col 1} | ${2:Col 2} |\n| --- | --- |\n| ${3:Val 1} | ${4:Val 2} |'),
-      boost: 5,
-    },
-    {
-      label: 'math',
-      detail: 'Math block ($$)',
-      type: 'snippet',
-      apply: snippet('$$\n#{0}\n$$'),
-      boost: 5,
-    },
-    {
-      label: 'task',
-      detail: 'Task item (- [ ])',
-      type: 'snippet',
-      apply: snippet('- [ ] ${0}'),
-      boost: 5,
-    },
-    {
-      label: 'todo',
-      detail: 'Task item (- [ ])',
-      type: 'snippet',
-      apply: snippet('- [ ] ${0}'),
-      boost: 5,
-    },
-    {
-      label: 'mermaid',
-      detail: 'Mermaid diagram block',
-      type: 'snippet',
-      apply: snippet('```mermaid\nflowchart TD\n  Start[Start] --> Process[Process] --> End[End]\n```'),
-      boost: 5,
-    },
-  ];
-
-  // Document words
-  const wordResult = completeAnyWord(context);
-  const wordOptions = wordResult && 'options' in wordResult ? wordResult.options : [];
+  const options: Completion[] = SLASH_COMMANDS.map((cmd) => ({
+    label: cmd.label,
+    detail: cmd.detail,
+    type: 'keyword',
+    apply: cmd.apply,
+  }));
 
   return {
-    from,
-    options: [...generalSnippets, ...wordOptions],
-    validFor: /^[\w-]+$/,
+    from: match.from,
+    options,
+    validFor: /^\/([a-zA-Z0-9_\-:]*)$/,
   };
 }
 
@@ -306,7 +257,7 @@ export function createWikiLinkAutocompleteSource(
 }
 
 /**
- * Creates merged autocompletion extension with wiki-links and rich markdown snippets.
+ * Creates merged autocompletion extension with wiki-links and slash commands.
  */
 export function createMarkdownAutocompleteExtension(
   getWorkspaceFiles?: () => string[]
