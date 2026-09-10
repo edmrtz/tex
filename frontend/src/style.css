@@ -236,34 +236,6 @@ html, body {
   min-width: 0;
 }
 
-.document-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.document-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-main);
-  font-family: var(--font-mono);
-}
-
-.dirty-badge {
-  color: var(--dirty);
-  font-size: 10px;
-}
-
-.document-path {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .header-right {
   display: flex;
   align-items: center;

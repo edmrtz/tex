@@ -988,26 +988,6 @@
     color: var(--text-bright);
   }
 
-  .btn-clear-tag-filter {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 12px;
-    background-color: var(--bg-hover);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--accent);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
-  }
-
-  .btn-clear-tag-filter:hover {
-    border-color: var(--accent);
-    background-color: var(--bg-active);
-  }
-
   /* Content */
   .sidebar-content {
     flex: 1;
@@ -1442,9 +1422,6 @@
     font-family: var(--font-mono);
   }
 
-  .add-tag-modal {
-    width: 380px;
-  }
 
   .modal-title {
     font-size: 13px;
@@ -1477,50 +1454,6 @@
 
   .tui-modal-input:focus {
     border-color: var(--border-focus);
-  }
-
-  .tag-suggestions {
-    margin-top: -6px;
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .tag-suggestions-label {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .tag-suggestions-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    max-height: 80px;
-    overflow-y: auto;
-  }
-
-  .tag-suggestion-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    background-color: var(--bg-app);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--text-main);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    transition: all 0.12s ease;
-  }
-
-  .tag-suggestion-chip:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background-color: var(--bg-hover);
   }
 
   .modal-message {
