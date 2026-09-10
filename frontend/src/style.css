@@ -185,29 +185,6 @@ html, body {
   width: 100%;
   overflow: hidden;
 }
-
-.sidebar-hover-zone {
-  position: absolute;
-  top: 30px;
-  bottom: 0;
-  left: 0;
-  width: 10px;
-  z-index: 40;
-  background: transparent;
-}
-
-.sidebar-floating {
-  position: absolute;
-  top: 30px;
-  bottom: 0;
-  left: 0;
-  z-index: 50;
-  width: 260px;
-  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
-  display: flex;
-  height: calc(100% - 30px);
-}
-
 /* TUI Icons / Buttons */
 .icon-btn {
   display: flex;

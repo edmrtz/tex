@@ -118,12 +118,16 @@ export function ensureVimCmdlineStyles() {
   width: 100% !important;
 }
 
-body:has(.cm-vim-panel) .main-workspace,
 body:has(.cm-vim-panel) .sidebar,
 body:has(.cm-vim-panel) .tui-window-titlebar,
-html:has(.cm-vim-panel) .main-workspace,
+body:has(.cm-vim-panel) .document-header,
+body:has(.cm-vim-panel) .tag-bar,
+body:has(.cm-vim-panel) .cm-scroller,
 html:has(.cm-vim-panel) .sidebar,
-html:has(.cm-vim-panel) .tui-window-titlebar {
+html:has(.cm-vim-panel) .tui-window-titlebar,
+html:has(.cm-vim-panel) .document-header,
+html:has(.cm-vim-panel) .tag-bar,
+html:has(.cm-vim-panel) .cm-scroller {
   filter: blur(4px) !important;
   transition: filter 0.15s ease !important;
   pointer-events: none !important;
@@ -135,7 +139,6 @@ html:has(.cm-vim-panel)::after {
   position: fixed !important;
   inset: 0 !important;
   background: rgba(0, 0, 0, 0.45) !important;
-  backdrop-filter: blur(4px) !important;
   z-index: 999 !important;
   pointer-events: none !important;
 }
@@ -158,7 +161,7 @@ body[data-theme="light"] .cm-vim-panel input,
 
 html[data-theme="light"]:has(.cm-vim-panel)::after,
 body[data-theme="light"]:has(.cm-vim-panel)::after {
-  background: rgba(0, 0, 0, 0.2) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
 }
 `;
   document.head.appendChild(style);
@@ -296,7 +299,7 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     marginBottom: '0.5em',
-    color: '#38bdf8 !important', // Vibrant Sky / Cyan
+    color: 'var(--text-heading, #38bdf8) !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -304,25 +307,25 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
     marginTop: '0.75em',
-    color: '#818cf8 !important', // Vibrant Indigo
+    color: 'var(--text-heading, #818cf8) !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: '#c084fc !important', // Vibrant Purple / Violet
+    color: 'var(--text-heading, #c084fc) !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: '#34d399 !important', // Vibrant Emerald / Teal
+    color: 'var(--text-heading, #34d399) !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: '#fbbf24 !important', // Vibrant Amber / Gold
+    color: 'var(--text-heading, #fbbf24) !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: '#f472b6 !important', // Vibrant Rose / Pink
+    color: 'var(--text-heading, #f472b6) !important',
     textTransform: 'uppercase',
   },
   // Inline typography
@@ -737,7 +740,7 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     marginBottom: '0.5em',
-    color: '#0284c7 !important', // Deep Sky Blue
+    color: 'var(--text-heading, #0284c7) !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -745,25 +748,25 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(0, 0, 0, 0.07))',
     marginTop: '0.75em',
-    color: '#4f46e5 !important', // Deep Indigo
+    color: 'var(--text-heading, #4f46e5) !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: '#7c3aed !important', // Deep Violet
+    color: 'var(--text-heading, #7c3aed) !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: '#059669 !important', // Deep Emerald
+    color: 'var(--text-heading, #059669) !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: '#d97706 !important', // Deep Amber
+    color: 'var(--text-heading, #d97706) !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: '#db2777 !important', // Deep Rose
+    color: 'var(--text-heading, #db2777) !important',
     textTransform: 'uppercase',
   },
   // Inline typography

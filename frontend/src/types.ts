@@ -60,4 +60,6 @@ export interface AppSettings {
   vimMode: boolean;
   fontSize: number;
   editorWidth: 'full' | 'wide' | 'centered';
+  headingColor?: string;
+  textColor?: string;
 }

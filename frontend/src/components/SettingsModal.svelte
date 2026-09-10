@@ -33,6 +33,24 @@
       onClose();
     }
   }
+
+  const HEADING_COLORS = [
+    { label: 'Default', value: 'default', color: '#38bdf8' },
+    { label: 'Sky', value: '#38bdf8', color: '#38bdf8' },
+    { label: 'Emerald', value: '#34d399', color: '#34d399' },
+    { label: 'Amber', value: '#fbbf24', color: '#fbbf24' },
+    { label: 'Rose', value: '#f472b6', color: '#f472b6' },
+    { label: 'Purple', value: '#c084fc', color: '#c084fc' },
+  ];
+
+  const TEXT_COLORS = [
+    { label: 'Default', value: 'default', color: '#e4e4e7' },
+    { label: 'Soft White', value: '#ffffff', color: '#ffffff' },
+    { label: 'Light Gray', value: '#d4d4d8', color: '#d4d4d8' },
+    { label: 'Amber', value: '#fde68a', color: '#fde68a' },
+    { label: 'Cyan', value: '#a5f3fc', color: '#a5f3fc' },
+    { label: 'Green', value: '#bbf7d0', color: '#bbf7d0' },
+  ];
 </script>
 
 {#if isOpen}
@@ -236,6 +254,69 @@
             >
               +
             </button>
+          </div>
+        </div>
+        <!-- Section: Heading Color -->
+        <div class="settings-group">
+          <div class="group-header">
+            <span class="group-name">Heading Color</span>
+            <span class="value-badge">{draft.headingColor || 'default'}</span>
+          </div>
+          <div class="tui-color-grid">
+            {#each HEADING_COLORS as c}
+              <button
+                class="tui-color-btn"
+                class:selected={(draft.headingColor || 'default') === c.value}
+                onclick={() => update('headingColor', c.value)}
+                type="button"
+              >
+                <span class="color-dot" style="background-color: {c.color};"></span>
+                <span>{c.label}</span>
+              </button>
+            {/each}
+            <div class="custom-color-item">
+              <label class="custom-color-label" title="Custom color picker">
+                <input
+                  type="color"
+                  class="native-color-picker"
+                  value={draft.headingColor && draft.headingColor !== 'default' ? draft.headingColor : '#38bdf8'}
+                  oninput={(e) => update('headingColor', e.currentTarget.value)}
+                />
+                <span>Custom</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Normal Text Color -->
+        <div class="settings-group">
+          <div class="group-header">
+            <span class="group-name">Normal Text Color</span>
+            <span class="value-badge">{draft.textColor || 'default'}</span>
+          </div>
+          <div class="tui-color-grid">
+            {#each TEXT_COLORS as c}
+              <button
+                class="tui-color-btn"
+                class:selected={(draft.textColor || 'default') === c.value}
+                onclick={() => update('textColor', c.value)}
+                type="button"
+              >
+                <span class="color-dot" style="background-color: {c.color};"></span>
+                <span>{c.label}</span>
+              </button>
+            {/each}
+            <div class="custom-color-item">
+              <label class="custom-color-label" title="Custom color picker">
+                <input
+                  type="color"
+                  class="native-color-picker"
+                  value={draft.textColor && draft.textColor !== 'default' ? draft.textColor : '#e4e4e7'}
+                  oninput={(e) => update('textColor', e.currentTarget.value)}
+                />
+                <span>Custom</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -474,6 +555,77 @@
   .tui-range {
     flex: 1;
     accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .tui-color-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .tui-color-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-main);
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 0px;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+  }
+
+  .tui-color-btn:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent);
+  }
+
+  .tui-color-btn.selected {
+    border-color: var(--accent);
+    color: var(--text-bright);
+    background-color: var(--accent-subtle);
+  }
+
+  .color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .custom-color-item {
+    display: flex;
+  }
+
+  .custom-color-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 0px;
+    cursor: pointer;
+  }
+
+  .custom-color-label:hover {
+    border-color: var(--accent);
+    color: var(--text-bright);
+  }
+
+  .native-color-picker {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: transparent;
     cursor: pointer;
   }
 

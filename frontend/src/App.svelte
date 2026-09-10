@@ -67,6 +67,8 @@
     vimMode: false,
     fontSize: 15,
     editorWidth: 'full',
+    headingColor: 'default',
+    textColor: 'default',
   };
 
   function loadSettings(): AppSettings {
@@ -112,7 +114,6 @@
 
   // State
   let sidebarOpen = $state<boolean>(true);
-  let sidebarHovered = $state<boolean>(false);
   let notes = $state<NoteDocument[]>([]);
   let activeNoteId = $state<string>('');
   let currentFolder = $state<string>('');
@@ -282,6 +283,17 @@
     document.documentElement.style.setProperty('--font-ui', getUiFontFamily(newSettings.uiFont));
     document.documentElement.style.setProperty('--font-mono', getMonoFontFamily(newSettings.monoFont));
 
+    if (newSettings.headingColor && newSettings.headingColor !== 'default') {
+      document.documentElement.style.setProperty('--text-heading', newSettings.headingColor);
+    } else {
+      document.documentElement.style.removeProperty('--text-heading');
+    }
+
+    if (newSettings.textColor && newSettings.textColor !== 'default') {
+      document.documentElement.style.setProperty('--text-main', newSettings.textColor);
+    } else {
+      document.documentElement.style.removeProperty('--text-main');
+    }
     if (editorInstance) {
       editorInstance.applySettings(newSettings);
     }
@@ -861,7 +873,6 @@
 
   function toggleSidebar() {
     sidebarOpen = !sidebarOpen;
-    sidebarHovered = false;
   }
 
   function zoomIn() {
@@ -1198,25 +1209,8 @@
 
   <!-- App Body (Sidebar + Editor) -->
   <div class="app-body">
-    {#if !sidebarOpen}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="sidebar-hover-zone"
-        onmouseenter={() => { sidebarHovered = true; }}
-        aria-hidden="true"
-      ></div>
-    {/if}
-
     {#if sidebarOpen}
       {@render sidebarView()}
-    {:else if sidebarHovered}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="sidebar-floating"
-        onmouseleave={() => { sidebarHovered = false; }}
-      >
-        {@render sidebarView()}
-      </div>
     {/if}
 
     <!-- Main Workspace -->
@@ -1450,6 +1444,16 @@
     align-items: center;
     gap: 8px;
     z-index: 2;
+    opacity: 0;
+    transition: opacity 0.18s ease-in-out;
+    pointer-events: none;
+  }
+
+  .document-header:hover .header-left,
+  .header-left:hover,
+  .header-left:focus-within {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .sidebar-toggle-btn {
@@ -1526,27 +1530,6 @@
     pointer-events: auto;
   }
 
-  .sidebar-hover-zone {
-    position: absolute;
-    top: 30px;
-    bottom: 0;
-    left: 0;
-    width: 10px;
-    z-index: 40;
-    background: transparent;
-  }
-
-  .sidebar-floating {
-    position: absolute;
-    top: 30px;
-    bottom: 0;
-    left: 0;
-    z-index: 50;
-    width: 260px;
-    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
-    display: flex;
-    height: calc(100% - 30px);
-  }
 
   .mode-badge-btn {
     display: flex;

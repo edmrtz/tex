@@ -569,8 +569,7 @@
         title="Find & Quick Switcher (Ctrl+P)"
         type="button"
       >
-        <Search size={13} />
-        <span class="btn-label">Find</span>
+        <Search size={14} />
       </button>
 
       <button
@@ -579,8 +578,7 @@
         title="Export Document (Ctrl+Shift+E)"
         type="button"
       >
-        <Download size={13} />
-        <span class="btn-label">Export</span>
+        <Download size={14} />
       </button>
 
       <button
@@ -589,8 +587,7 @@
         title="Preferences (Ctrl+,)"
         type="button"
       >
-        <SettingsIcon size={13} />
-        <span class="btn-label">Settings</span>
+        <SettingsIcon size={14} />
       </button>
     </div>
   </aside>
@@ -930,9 +927,7 @@
   .sidebar {
     width: 260px;
     height: 100%;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    background-color: rgba(11, 11, 13, 0.88);
+    background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -1335,9 +1330,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 5px 8px;
-    font-size: 11px;
+    padding: 6px 8px;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
@@ -1352,9 +1345,6 @@
     color: var(--text-bright);
   }
 
-  .btn-label {
-    font-weight: 500;
-  }
 
   /* Context Menu */
   .sidebar-context-menu {

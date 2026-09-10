@@ -18,6 +18,7 @@ import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
 import { vim, Vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
+import { createMarkdownAutocompleteExtension } from './completions';
 import {
   editorThemeDark,
   editorThemeLight,
@@ -52,7 +53,6 @@ export function createMarkdownEditor(
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
   const fontCompartment = new Compartment();
-  const cursorVisibilityCompartment = new Compartment();
   const vimCompartment = new Compartment();
   const widthCompartment = new Compartment();
   const readOnlyCompartment = new Compartment();
@@ -80,15 +80,6 @@ export function createMarkdownEditor(
     return createEditorWidthTheme(w);
   }
 
-  function getCursorVisibilityExtension(m: EditorMode): Extension {
-    return m === 'live'
-      ? EditorView.theme({
-          '.cm-cursorLayer, .cm-cursor': {
-            display: 'none !important',
-          },
-        })
-      : [];
-  }
 
   function getVimExtension(enabled: boolean): Extension {
     if (enabled) {
@@ -332,7 +323,6 @@ export function createMarkdownEditor(
     extensions: [
       appPriorityKeymap,
       vimCompartment.of(getVimExtension(settings.vimMode)),
-      cursorVisibilityCompartment.of(getCursorVisibilityExtension(mode)),
       history(),
       dropCursor(),
       drawSelection({ cursorBlinkRate: 1050 }),
@@ -347,6 +337,7 @@ export function createMarkdownEditor(
         codeLanguages: languages,
         addKeymap: true,
       }),
+      createMarkdownAutocompleteExtension(callbacks.getWorkspaceFiles),
       domEventHandlers,
       widthCompartment.of(getWidthExtension(settings.editorWidth)),
       modeCompartment.of(getModeExtension(mode)),
@@ -355,7 +346,7 @@ export function createMarkdownEditor(
       fontCompartment.of(getFontExtension(settings)),
       updateListener,
       EditorView.lineWrapping,
-      readOnlyCompartment.of(EditorState.readOnly.of(readOnly || mode === 'live')),
+      readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
     ],
   });
 
@@ -377,8 +368,7 @@ export function createMarkdownEditor(
       view.dispatch({
         effects: [
           modeCompartment.reconfigure(getModeExtension(newMode)),
-          cursorVisibilityCompartment.reconfigure(getCursorVisibilityExtension(newMode)),
-          readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly || newMode === 'live')),
+          readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly)),
         ],
       });
     },

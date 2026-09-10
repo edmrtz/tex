@@ -206,10 +206,181 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
 ];
 
 /**
+ * Detects whether the current cursor position is inside a KaTeX inline ($...$) or block ($$...$$) math environment.
+ */
+export function isInsideMath(doc: string, pos: number): boolean {
+  // 1. Check multi-line block math: $$ ... $$
+  let inBlock = false;
+  let blockStart = -1;
+  let idx = 0;
+  while ((idx = doc.indexOf('$$', idx)) !== -1) {
+    if (idx >= pos) break;
+    inBlock = !inBlock;
+    blockStart = idx;
+    idx += 2;
+  }
+  if (inBlock) {
+    const nextClose = doc.indexOf('$$', blockStart + 2);
+    if (nextClose === -1 || nextClose >= pos) {
+      return true;
+    }
+  }
+
+  // 2. Check inline math: $ ... $ (single dollar sign on current line)
+  const lineStart = doc.lastIndexOf('\n', pos - 1) + 1;
+  const lineEndIdx = doc.indexOf('\n', pos);
+  const lineEnd = lineEndIdx === -1 ? doc.length : lineEndIdx;
+  const lineText = doc.slice(lineStart, lineEnd);
+  const linePos = pos - lineStart;
+
+  let inInline = false;
+  for (let i = 0; i < lineText.length; i++) {
+    if (lineText[i] === '$' && (i === 0 || lineText[i - 1] !== '\\')) {
+      if (lineText[i + 1] === '$') {
+        i++; // skip block marker
+        continue;
+      }
+      if (i >= linePos) break;
+      inInline = !inInline;
+    }
+  }
+
+  if (inInline) {
+    for (let i = linePos; i < lineText.length; i++) {
+      if (lineText[i] === '$' && (i === 0 || lineText[i - 1] !== '\\')) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+export interface KaTeXSuggestionDef {
+  label: string;
+  detail: string;
+  apply: string;
+}
+
+export const KATEX_MATH_SUGGESTIONS: KaTeXSuggestionDef[] = [
+  // Common math constructs
+  { label: '\\frac', detail: 'Fraction \\frac{a}{b}', apply: '\\frac{a}{b}' },
+  { label: '\\sqrt', detail: 'Square root \\sqrt{x}', apply: '\\sqrt{x}' },
+  { label: '\\sum', detail: 'Summation \\sum_{i=0}^{n}', apply: '\\sum_{i=0}^{n} ' },
+  { label: '\\prod', detail: 'Product \\prod_{i=0}^{n}', apply: '\\prod_{i=0}^{n} ' },
+  { label: '\\int', detail: 'Integral \\int_{a}^{b}', apply: '\\int_{a}^{b} ' },
+  { label: '\\iint', detail: 'Double integral', apply: '\\iint ' },
+  { label: '\\oint', detail: 'Contour integral', apply: '\\oint ' },
+  { label: '\\lim', detail: 'Limit \\lim_{x \\to 0}', apply: '\\lim_{x \\to 0} ' },
+  { label: '\\infty', detail: 'Infinity ∞', apply: '\\infty' },
+  { label: '\\partial', detail: 'Partial derivative ∂', apply: '\\partial' },
+  { label: '\\nabla', detail: 'Nabla / Del ∇', apply: '\\nabla' },
+
+  // Greek lowercase
+  { label: '\\alpha', detail: 'Greek alpha α', apply: '\\alpha' },
+  { label: '\\beta', detail: 'Greek beta β', apply: '\\beta' },
+  { label: '\\gamma', detail: 'Greek gamma γ', apply: '\\gamma' },
+  { label: '\\delta', detail: 'Greek delta δ', apply: '\\delta' },
+  { label: '\\epsilon', detail: 'Greek epsilon ε', apply: '\\epsilon' },
+  { label: '\\theta', detail: 'Greek theta θ', apply: '\\theta' },
+  { label: '\\lambda', detail: 'Greek lambda λ', apply: '\\lambda' },
+  { label: '\\mu', detail: 'Greek mu μ', apply: '\\mu' },
+  { label: '\\pi', detail: 'Greek pi π', apply: '\\pi' },
+  { label: '\\sigma', detail: 'Greek sigma σ', apply: '\\sigma' },
+  { label: '\\tau', detail: 'Greek tau τ', apply: '\\tau' },
+  { label: '\\phi', detail: 'Greek phi φ', apply: '\\phi' },
+  { label: '\\omega', detail: 'Greek omega ω', apply: '\\omega' },
+
+  // Greek uppercase
+  { label: '\\Delta', detail: 'Greek Delta Δ', apply: '\\Delta' },
+  { label: '\\Sigma', detail: 'Greek Sigma Σ', apply: '\\Sigma' },
+  { label: '\\Omega', detail: 'Greek Omega Ω', apply: '\\Omega' },
+  { label: '\\Gamma', detail: 'Greek Gamma Γ', apply: '\\Gamma' },
+  { label: '\\Theta', detail: 'Greek Theta Θ', apply: '\\Theta' },
+  { label: '\\Lambda', detail: 'Greek Lambda Λ', apply: '\\Lambda' },
+
+  // Relations & operators
+  { label: '\\times', detail: 'Times ×', apply: '\\times' },
+  { label: '\\cdot', detail: 'Dot product ·', apply: '\\cdot' },
+  { label: '\\pm', detail: 'Plus-minus ±', apply: '\\pm' },
+  { label: '\\div', detail: 'Division ÷', apply: '\\div' },
+  { label: '\\leq', detail: 'Less than or equal ≤', apply: '\\leq' },
+  { label: '\\geq', detail: 'Greater than or equal ≥', apply: '\\geq' },
+  { label: '\\neq', detail: 'Not equal ≠', apply: '\\neq' },
+  { label: '\\approx', detail: 'Approximately ≈', apply: '\\approx' },
+  { label: '\\equiv', detail: 'Equivalent ≡', apply: '\\equiv' },
+
+  // Arrows
+  { label: '\\rightarrow', detail: 'Right arrow →', apply: '\\rightarrow' },
+  { label: '\\leftarrow', detail: 'Left arrow ←', apply: '\\leftarrow' },
+  { label: '\\rArr', detail: 'Double right arrow ⇒', apply: '\\rArr' },
+  { label: '\\lArr', detail: 'Double left arrow ⇐', apply: '\\lArr' },
+  { label: '\\Rightarrow', detail: 'Right implication ⇒', apply: '\\Rightarrow' },
+  { label: '\\Leftarrow', detail: 'Left implication ⇐', apply: '\\Leftarrow' },
+  { label: '\\leftrightarrow', detail: 'Left-right arrow ↔', apply: '\\leftrightarrow' },
+  { label: '\\Leftrightarrow', detail: 'Equivalence ⇔', apply: '\\Leftrightarrow' },
+
+  // Sets & logic
+  { label: '\\in', detail: 'Element of ∈', apply: '\\in' },
+  { label: '\\notin', detail: 'Not element of ∉', apply: '\\notin' },
+  { label: '\\subset', detail: 'Subset ⊂', apply: '\\subset' },
+  { label: '\\subseteq', detail: 'Subset or equal ⊆', apply: '\\subseteq' },
+  { label: '\\cup', detail: 'Union ∪', apply: '\\cup' },
+  { label: '\\cap', detail: 'Intersection ∩', apply: '\\cap' },
+  { label: '\\emptyset', detail: 'Empty set ∅', apply: '\\emptyset' },
+  { label: '\\forall', detail: 'For all ∀', apply: '\\forall' },
+  { label: '\\exists', detail: 'There exists ∃', apply: '\\exists' },
+
+  // Formatting & environments
+  { label: '\\text', detail: 'Text mode \\text{...}', apply: '\\text{text}' },
+  { label: '\\mathbf', detail: 'Bold math \\mathbf{...}', apply: '\\mathbf{X}' },
+  { label: '\\mathit', detail: 'Italic math \\mathit{...}', apply: '\\mathit{X}' },
+  { label: '\\begin{matrix}', detail: 'Matrix environment', apply: '\\begin{matrix}\n  a & b \\\\\n  c & d\n\\end{matrix}' },
+  { label: '\\begin{pmatrix}', detail: 'Parenthesized matrix', apply: '\\begin{pmatrix}\n  a & b \\\\\n  c & d\n\\end{pmatrix}' },
+  { label: '\\begin{bmatrix}', detail: 'Bracketed matrix', apply: '\\begin{bmatrix}\n  a & b \\\\\n  c & d\n\\end{bmatrix}' },
+  { label: '\\begin{cases}', detail: 'Cases / piecewise function', apply: '\\begin{cases}\n  a & \\text{if } x > 0 \\\\\n  b & \\text{otherwise}\n\\end{cases}' },
+  { label: '\\begin{aligned}', detail: 'Aligned equations', apply: '\\begin{aligned}\n  a &= b + c \\\\\n  d &= e + f\n\\end{aligned}' },
+];
+
+/**
+ * Autocompletion source for KaTeX math commands.
+ * ONLY triggers when cursor is strictly inside a math environment ($...$ or $$...$$).
+ */
+export function katexAutocompleteSource(context: CompletionContext): CompletionResult | null {
+  const doc = context.state.doc.toString();
+  if (!isInsideMath(doc, context.pos)) {
+    return null;
+  }
+
+  const match = context.matchBefore(/\\[a-zA-Z]*/);
+  if (!match) {
+    return null;
+  }
+
+  const options: Completion[] = KATEX_MATH_SUGGESTIONS.map((sugg) => ({
+    label: sugg.label,
+    detail: sugg.detail,
+    type: 'function',
+    apply: sugg.apply,
+  }));
+
+  return {
+    from: match.from,
+    options,
+    validFor: /^\\[a-zA-Z]*$/,
+  };
+}
+
+/**
  * Autocompletion source for markdown slash commands.
- * Only triggers when cursor is immediately after a '/' followed by optional command chars.
+ * Triggers ONLY outside math environments.
  */
 export function markdownAutocompleteSource(context: CompletionContext): CompletionResult | null {
+  const doc = context.state.doc.toString();
+  if (isInsideMath(doc, context.pos)) {
+    return null;
+  }
+
   const match = context.matchBefore(/\/([a-zA-Z0-9_\-:]*)/);
   if (!match) {
     return null;
@@ -266,6 +437,7 @@ export function createMarkdownAutocompleteExtension(
     override: [
       createWikiLinkAutocompleteSource(getWorkspaceFiles),
       markdownAutocompleteSource,
+      katexAutocompleteSource,
     ],
   });
 }
