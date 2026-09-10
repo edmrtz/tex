@@ -1408,7 +1408,6 @@
     align-items: center;
     justify-content: center;
     z-index: 2500;
-    backdrop-filter: blur(2px);
   }
 
   .modal-card {

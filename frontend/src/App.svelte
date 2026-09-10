@@ -64,11 +64,8 @@
     theme: 'dark',
     uiFont: 'system',
     monoFont: 'default',
-    vimMode: false,
     fontSize: 15,
     editorWidth: 'full',
-    headingColor: 'default',
-    textColor: 'default',
   };
 
   function loadSettings(): AppSettings {
@@ -280,20 +277,12 @@
     } catch {}
 
     document.documentElement.setAttribute('data-theme', newSettings.theme);
-    document.documentElement.style.setProperty('--font-ui', getUiFontFamily(newSettings.uiFont));
-    document.documentElement.style.setProperty('--font-mono', getMonoFontFamily(newSettings.monoFont));
+    document.documentElement.style.removeProperty('--font-ui');
+    document.documentElement.style.removeProperty('--font-mono');
+    document.documentElement.style.removeProperty('--text-heading');
+    document.documentElement.style.removeProperty('--text-main');
 
-    if (newSettings.headingColor && newSettings.headingColor !== 'default') {
-      document.documentElement.style.setProperty('--text-heading', newSettings.headingColor);
-    } else {
-      document.documentElement.style.removeProperty('--text-heading');
-    }
-
-    if (newSettings.textColor && newSettings.textColor !== 'default') {
-      document.documentElement.style.setProperty('--text-main', newSettings.textColor);
-    } else {
-      document.documentElement.style.removeProperty('--text-main');
-    }
+    // Typography and width apply directly to markdown editor
     if (editorInstance) {
       editorInstance.applySettings(newSettings);
     }
@@ -889,62 +878,78 @@
     applyAppSettings({ ...settings, fontSize: 15 });
   }
 
+  function matchesKeybind(e: KeyboardEvent, bind: string): boolean {
+    if (!bind) return false;
+    const parts = bind.toLowerCase().split('+');
+    const key = parts[parts.length - 1];
+    const needsCtrl = parts.includes('ctrl') || parts.includes('mod');
+    const needsShift = parts.includes('shift');
+    const needsAlt = parts.includes('alt');
+
+    const hasCtrl = e.ctrlKey || e.metaKey;
+    if (needsCtrl !== hasCtrl) return false;
+    if (needsShift !== e.shiftKey) return false;
+    if (needsAlt !== e.altKey) return false;
+
+    return e.key.toLowerCase() === key;
+  }
+
   // Keyboard shortcut listener
   function handleKeyDown(e: KeyboardEvent) {
     if (e.defaultPrevented) return;
 
+    const kb = settings.keybinds;
 
-    if (e.ctrlKey || e.metaKey) {
-      if ((e.key === 'p' || e.key === 'P' || e.key === 'k' || e.key === 'K') && !e.shiftKey) {
-        e.preventDefault();
-        showQuickSwitcher = true;
-        return;
-      } else if ((e.key === 'p' || e.key === 'P') && e.shiftKey) {
-        e.preventDefault();
-        handlePrint();
-        return;
-      } else if ((e.key === 'e' || e.key === 'E') && e.shiftKey) {
-        e.preventDefault();
-        handleExportHTML();
-        return;
-      } else if (e.key === '\\') {
-        e.preventDefault();
-        toggleEditorMode();
-        return;
-      } else if (e.key === 'b') {
-        e.preventDefault();
-        toggleSidebar();
-      } else if (e.key === 'n') {
-        e.preventDefault();
-        addNote();
-      } else if (e.key === 'o' && e.shiftKey) {
-        e.preventDefault();
-        handleOpenFolder();
-      } else if (e.key === 'o') {
-        e.preventDefault();
-        handleOpenFile();
-      } else if (e.key === 's' && e.shiftKey) {
-        e.preventDefault();
-        handleSaveAs();
-      } else if (e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      } else if (e.key === 'w') {
-        e.preventDefault();
-        if (activeNoteId) requestCloseNote(activeNoteId);
-      } else if (e.key === 'e') {
-        e.preventDefault();
-        toggleEditorMode();
-      } else if (e.key === 'f') {
-        e.preventDefault();
-        showFindReplace = !showFindReplace;
-      } else if (e.key === 'h') {
-        e.preventDefault();
-        showFindReplace = true;
-      } else if (e.key === ',') {
-        e.preventDefault();
-        showSettingsModal = !showSettingsModal;
-      } else if (e.key === '=' || e.key === '+') {
+    if (matchesKeybind(e, kb?.quickSwitcher || 'Ctrl+P') || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !e.shiftKey)) {
+      e.preventDefault();
+      showQuickSwitcher = true;
+      return;
+    } else if (matchesKeybind(e, kb?.exportHtml || 'Ctrl+Shift+E')) {
+      e.preventDefault();
+      handleExportHTML();
+      return;
+    } else if (matchesKeybind(e, kb?.toggleMode || 'Ctrl+\\')) {
+      e.preventDefault();
+      toggleEditorMode();
+      return;
+    } else if (matchesKeybind(e, kb?.toggleSidebar || 'Ctrl+B')) {
+      e.preventDefault();
+      toggleSidebar();
+      return;
+    } else if (matchesKeybind(e, kb?.newNote || 'Ctrl+N')) {
+      e.preventDefault();
+      addNote();
+      return;
+    } else if (matchesKeybind(e, kb?.openFolder || 'Ctrl+Shift+O')) {
+      e.preventDefault();
+      handleOpenFolder();
+      return;
+    } else if (matchesKeybind(e, kb?.openFile || 'Ctrl+O')) {
+      e.preventDefault();
+      handleOpenFile();
+      return;
+    } else if (matchesKeybind(e, kb?.saveAs || 'Ctrl+Shift+S')) {
+      e.preventDefault();
+      handleSaveAs();
+      return;
+    } else if (matchesKeybind(e, kb?.save || 'Ctrl+S')) {
+      e.preventDefault();
+      handleSave();
+      return;
+    } else if (matchesKeybind(e, kb?.closeNote || 'Ctrl+W')) {
+      e.preventDefault();
+      if (activeNoteId) requestCloseNote(activeNoteId);
+      return;
+    } else if (matchesKeybind(e, kb?.findReplace || 'Ctrl+F') || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h')) {
+      e.preventDefault();
+      showFindReplace = !showFindReplace;
+      return;
+    } else if (matchesKeybind(e, kb?.preferences || 'Ctrl+,')) {
+      e.preventDefault();
+      showSettingsModal = !showSettingsModal;
+      return;
+    } else if (e.ctrlKey || e.metaKey) {
+      if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         zoomIn();
       } else if (e.key === '-') {
@@ -1235,7 +1240,7 @@
         <!-- Centered Single Tab -->
         <div class="document-tab-center">
           <span class="document-tab-title" title={activeNote?.path || activeNote?.title || 'Untitled'}>
-            {activeNote?.title || 'Untitled'}
+            {(activeNote?.title || 'Untitled').replace(/\.md$/i, '')}
           </span>
           {#if activeNote?.isDirty}
             <span class="document-tab-dirty" title="Unsaved changes">●</span>
@@ -1618,7 +1623,6 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    backdrop-filter: blur(2px);
     animation: appModalOverlayFade 0.15s ease-out;
   }
 

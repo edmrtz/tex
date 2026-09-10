@@ -79,100 +79,6 @@ export function createEditorWidthTheme(mode: 'full' | 'wide' | 'centered' = 'ful
 }
 
 
-const VIM_STYLE_ID = 'tex-vim-cmdline-styles';
-
-export function ensureVimCmdlineStyles() {
-  if (typeof document === 'undefined' || document.getElementById(VIM_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = VIM_STYLE_ID;
-  style.textContent = `
-.cm-vim-panel {
-  position: fixed !important;
-  top: 35% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  z-index: 1000 !important;
-  min-width: 440px !important;
-  max-width: 90vw !important;
-  background: var(--bg-card, #18181c) !important;
-  border: 1px solid var(--accent, #38bdf8) !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75) !important;
-  padding: 10px 16px !important;
-  font-family: var(--font-mono) !important;
-  color: var(--text-bright, #ffffff) !important;
-  border-radius: 0px !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
-.cm-vim-panel input {
-  background: transparent !important;
-  color: var(--text-bright, #ffffff) !important;
-  font-family: var(--font-mono) !important;
-  font-size: 13.5px !important;
-  border: none !important;
-  outline: none !important;
-  width: 100% !important;
-}
-
-body:has(.cm-vim-panel) .sidebar,
-body:has(.cm-vim-panel) .tui-window-titlebar,
-body:has(.cm-vim-panel) .document-header,
-body:has(.cm-vim-panel) .tag-bar,
-body:has(.cm-vim-panel) .cm-scroller,
-html:has(.cm-vim-panel) .sidebar,
-html:has(.cm-vim-panel) .tui-window-titlebar,
-html:has(.cm-vim-panel) .document-header,
-html:has(.cm-vim-panel) .tag-bar,
-html:has(.cm-vim-panel) .cm-scroller {
-  filter: blur(4px) !important;
-  transition: filter 0.15s ease !important;
-  pointer-events: none !important;
-}
-
-body:has(.cm-vim-panel)::after,
-html:has(.cm-vim-panel)::after {
-  content: '' !important;
-  position: fixed !important;
-  inset: 0 !important;
-  background: rgba(0, 0, 0, 0.45) !important;
-  z-index: 999 !important;
-  pointer-events: none !important;
-}
-
-/* Light mode styles */
-html[data-theme="light"] .cm-vim-panel,
-body[data-theme="light"] .cm-vim-panel,
-.theme-light .cm-vim-panel {
-  background: var(--bg-card, #ffffff) !important;
-  border: 1px solid var(--accent, #0284c7) !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18) !important;
-  color: var(--text-bright, #09090b) !important;
-}
-
-html[data-theme="light"] .cm-vim-panel input,
-body[data-theme="light"] .cm-vim-panel input,
-.theme-light .cm-vim-panel input {
-  color: var(--text-bright, #09090b) !important;
-}
-
-html[data-theme="light"]:has(.cm-vim-panel)::after,
-body[data-theme="light"]:has(.cm-vim-panel)::after {
-  background: rgba(0, 0, 0, 0.25) !important;
-}
-`;
-  document.head.appendChild(style);
-}
-
-if (typeof document !== 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureVimCmdlineStyles);
-  } else {
-    ensureVimCmdlineStyles();
-  }
-}
-
 export const editorThemeDark = EditorView.theme({
   '&': {
     height: '100%',
@@ -231,8 +137,7 @@ export const editorThemeDark = EditorView.theme({
     backgroundColor: 'rgba(56, 189, 248, 0.25) !important',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(255, 255, 255, 0.025)',
-    transition: 'background-color 0.15s ease',
+    backgroundColor: 'transparent !important',
   },
   '.cm-scroller': {
     overflow: 'auto',
@@ -297,7 +202,7 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     marginBottom: '0.5em',
-    color: 'var(--text-heading, #38bdf8) !important',
+    color: '#38bdf8 !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -305,25 +210,25 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
     marginTop: '0.75em',
-    color: 'var(--text-heading, #818cf8) !important',
+    color: '#818cf8 !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: 'var(--text-heading, #c084fc) !important',
+    color: '#c084fc !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: 'var(--text-heading, #34d399) !important',
+    color: '#34d399 !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: 'var(--text-heading, #fbbf24) !important',
+    color: '#fbbf24 !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: 'var(--text-heading, #f472b6) !important',
+    color: '#f472b6 !important',
     textTransform: 'uppercase',
   },
   // Inline typography
@@ -644,8 +549,7 @@ export const editorThemeLight = EditorView.theme({
     backgroundColor: 'rgba(2, 132, 199, 0.2) !important',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    transition: 'background-color 0.15s ease',
+    backgroundColor: 'transparent !important',
   },
   '.cm-scroller': {
     overflow: 'auto',
@@ -710,7 +614,7 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     marginBottom: '0.5em',
-    color: 'var(--text-heading, #0284c7) !important',
+    color: '#0284c7 !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -718,25 +622,25 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(0, 0, 0, 0.07))',
     marginTop: '0.75em',
-    color: 'var(--text-heading, #4f46e5) !important',
+    color: '#4f46e5 !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: 'var(--text-heading, #7c3aed) !important',
+    color: '#7c3aed !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: 'var(--text-heading, #059669) !important',
+    color: '#059669 !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: 'var(--text-heading, #d97706) !important',
+    color: '#d97706 !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: 'var(--text-heading, #db2777) !important',
+    color: '#db2777 !important',
     textTransform: 'uppercase',
   },
   // Inline typography

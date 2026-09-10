@@ -57,9 +57,7 @@ export interface AppSettings {
   theme: 'dark' | 'light';
   uiFont: 'system' | 'inter' | 'serif';
   monoFont: 'default' | 'jetbrains' | 'fira' | 'consolas';
-  vimMode: boolean;
   fontSize: number;
   editorWidth: 'full' | 'wide' | 'centered';
-  headingColor?: string;
-  textColor?: string;
+  keybinds?: Record<string, string>;
 }

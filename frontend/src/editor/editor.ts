@@ -16,7 +16,6 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { Table } from '@lezer/markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
-import { vim, Vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
 import { createMarkdownAutocompleteExtension } from './completions';
 import {
@@ -53,12 +52,26 @@ export function createMarkdownEditor(
   const themeCompartment = new Compartment();
   const highlightCompartment = new Compartment();
   const fontCompartment = new Compartment();
-  const vimCompartment = new Compartment();
+  const keymapCompartment = new Compartment();
   const widthCompartment = new Compartment();
   const readOnlyCompartment = new Compartment();
 
   function getModeExtension(m: EditorMode): Extension {
-    return m === 'live' ? [createLivePreviewPlugin()] : [];
+    return m === 'live'
+      ? [
+          createLivePreviewPlugin(),
+          EditorState.readOnly.of(true),
+          EditorView.theme({
+            '.cm-cursorLayer, .cm-cursor': { display: 'none !important' },
+            '.cm-activeLine': { backgroundColor: 'transparent !important' },
+          }),
+        ]
+      : [
+          EditorState.readOnly.of(readOnly),
+          EditorView.theme({
+            '.cm-activeLine': { backgroundColor: 'transparent !important' },
+          }),
+        ];
   }
 
   function getThemeExtension(t: 'dark' | 'light'): Extension {
@@ -80,16 +93,6 @@ export function createMarkdownEditor(
     return createEditorWidthTheme(w);
   }
 
-
-  function getVimExtension(enabled: boolean): Extension {
-    if (enabled) {
-      Vim.defineEx('write', 'w', () => callbacks.onSaveShortcut());
-      Vim.defineEx('w', 'w', () => callbacks.onSaveShortcut());
-      Vim.map('jk', '<Esc>', 'insert');
-      return vim();
-    }
-    return [];
-  }
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
@@ -249,44 +252,21 @@ export function createMarkdownEditor(
     indentWithTab,
   ]);
 
+  function getAppKeymap(kb?: Record<string, string>) {
+    const saveKey = kb?.save || 'Mod-s';
+    const sidebarKey = kb?.toggleSidebar || 'Mod-b';
+    const modeKey = kb?.toggleMode || 'Mod-e';
+    const switcherKey = kb?.quickSwitcher || 'Mod-p';
+    const findKey = kb?.findReplace || 'Mod-f';
 
-  const appPriorityKeymap = keymap.of([
-    {
-      key: 'Mod-b',
-      run: () => {
-        callbacks.onToggleSidebar?.();
-        return true;
-      },
-    },
-    {
-      key: 'Mod-e',
-      run: () => {
-        callbacks.onToggleMode?.();
-        return true;
-      },
-    },
-    {
-      key: 'Mod-p',
-      run: () => {
-        callbacks.onQuickSwitcher?.();
-        return true;
-      },
-    },
-    {
-      key: 'Mod-s',
-      run: () => {
-        callbacks.onSaveShortcut();
-        return true;
-      },
-    },
-    {
-      key: 'Mod-f',
-      run: () => {
-        callbacks.onFindShortcut();
-        return true;
-      },
-    },
-  ]);
+    return keymap.of([
+      { key: sidebarKey, run: () => { callbacks.onToggleSidebar?.(); return true; } },
+      { key: modeKey, run: () => { callbacks.onToggleMode?.(); return true; } },
+      { key: switcherKey, run: () => { callbacks.onQuickSwitcher?.(); return true; } },
+      { key: saveKey, run: () => { callbacks.onSaveShortcut(); return true; } },
+      { key: findKey, run: () => { callbacks.onFindShortcut(); return true; } },
+    ]);
+  }
 
   const domEventHandlers = EditorView.domEventHandlers({
     paste(event, view) {
@@ -308,9 +288,10 @@ export function createMarkdownEditor(
       const files = event.dataTransfer?.files;
       if (!files || files.length === 0) return false;
       for (let i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) {
+        const f = files[i];
+        if (f && f.type.startsWith('image/')) {
           event.preventDefault();
-          callbacks.onPasteImage?.(files[i]);
+          callbacks.onPasteImage?.(f);
           return true;
         }
       }
@@ -321,12 +302,10 @@ export function createMarkdownEditor(
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
-      appPriorityKeymap,
-      vimCompartment.of(getVimExtension(settings.vimMode)),
+      keymapCompartment.of(getAppKeymap(settings.keybinds)),
       history(),
       dropCursor(),
       drawSelection({ cursorBlinkRate: 1050 }),
-      highlightActiveLine(),
       highlightSelectionMatches(),
       search({ top: true }),
       customKeymap,
@@ -346,7 +325,6 @@ export function createMarkdownEditor(
       fontCompartment.of(getFontExtension(settings)),
       updateListener,
       EditorView.lineWrapping,
-      readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
     ],
   });
 
@@ -368,7 +346,6 @@ export function createMarkdownEditor(
       view.dispatch({
         effects: [
           modeCompartment.reconfigure(getModeExtension(newMode)),
-          readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly)),
         ],
       });
     },
@@ -378,7 +355,7 @@ export function createMarkdownEditor(
           themeCompartment.reconfigure(getThemeExtension(newSettings.theme)),
           highlightCompartment.reconfigure(getHighlightExtension(newSettings.theme)),
           fontCompartment.reconfigure(getFontExtension(newSettings)),
-          vimCompartment.reconfigure(getVimExtension(newSettings.vimMode)),
+          keymapCompartment.reconfigure(getAppKeymap(newSettings.keybinds)),
           widthCompartment.reconfigure(getWidthExtension(newSettings.editorWidth)),
         ],
       });
