@@ -289,6 +289,23 @@ function cursorOnSameLine(state: EditorState, lineFrom: number, lineTo: number):
   return false;
 }
 
+const SLASH_COLOR_MAP: Record<string, string> = {
+  blue: '#38bdf8',
+  red: '#f87171',
+  magenta: '#f472b6',
+  green: '#4ade80',
+  yellow: '#facc15',
+  purple: '#c084fc',
+  cyan: '#22d3ee',
+  orange: '#fb923c',
+  pink: '#f472b6',
+  gray: '#9ca3af',
+  white: '#ffffff',
+  black: '#18181b',
+};
+
+const SLASH_COLOR_NAMES = Object.keys(SLASH_COLOR_MAP).join('|');
+
 function computeDecorations(state: EditorState): DecorationSet {
   const docText = state.doc.toString();
   const ranges: Range<Decoration>[] = [];
@@ -770,6 +787,125 @@ function computeDecorations(state: EditorState): DecorationSet {
         );
       }
       addReplacement(closeTagStart, matchTo, Decoration.replace({}));
+    }
+  }
+
+  // 6.5 Universal '/' color syntax: /blue[text], /red{text}, /magenta text/ or /magenta text
+  const bracketedCaptureRegex = new RegExp(`(?<!\\w)\\/(${SLASH_COLOR_NAMES})\\[([^\\]\\n]+)\\]`, 'gi');
+  while ((match = bracketedCaptureRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const colorKey = match[1].toLowerCase();
+    const hexColor = SLASH_COLOR_MAP[colorKey];
+    if (!hexColor) continue;
+
+    const prefixLen = match[0].indexOf(match[2]);
+    const innerFrom = matchFrom + prefixLen;
+    const innerTo = innerFrom + match[2].length;
+
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, innerFrom) || isOccupied(innerTo, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, innerFrom, Decoration.replace({}));
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+      addReplacement(innerTo, matchTo, Decoration.replace({}));
+    } else {
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+    }
+  }
+
+  const bracedCaptureRegex = new RegExp(`(?<!\\w)\\/(${SLASH_COLOR_NAMES})\\{([^}\\n]+)\\}`, 'gi');
+  while ((match = bracedCaptureRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const colorKey = match[1].toLowerCase();
+    const hexColor = SLASH_COLOR_MAP[colorKey];
+    if (!hexColor) continue;
+
+    const prefixLen = match[0].indexOf(match[2]);
+    const innerFrom = matchFrom + prefixLen;
+    const innerTo = innerFrom + match[2].length;
+
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, innerFrom) || isOccupied(innerTo, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, innerFrom, Decoration.replace({}));
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+      addReplacement(innerTo, matchTo, Decoration.replace({}));
+    } else {
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+    }
+  }
+
+  const delimitedCaptureRegex = new RegExp(`(?<!\\w)\\/(${SLASH_COLOR_NAMES})\\s+([^\\n/]+?)(?:/|$|\\n)`, 'gi');
+  while ((match = delimitedCaptureRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const colorKey = match[1].toLowerCase();
+    const hexColor = SLASH_COLOR_MAP[colorKey];
+    if (!hexColor) continue;
+
+    const hasSlashEnd = match[0].endsWith('/');
+    const hasNewlineEnd = match[0].endsWith('\n');
+    const effectiveMatchTo = hasNewlineEnd ? matchTo - 1 : matchTo;
+
+    const prefixLen = match[0].indexOf(match[2]);
+    const innerFrom = matchFrom + prefixLen;
+    const innerTo = innerFrom + match[2].length;
+
+    if (isInsideCode(matchFrom, effectiveMatchTo)) continue;
+    if (isOccupied(matchFrom, innerFrom)) continue;
+    if (hasSlashEnd && isOccupied(innerTo, effectiveMatchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, effectiveMatchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, innerFrom, Decoration.replace({}));
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+      if (hasSlashEnd) {
+        addReplacement(innerTo, effectiveMatchTo, Decoration.replace({}));
+      }
+    } else {
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${hexColor}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
     }
   }
 

@@ -19,15 +19,7 @@
     ChevronRight,
     ChevronDown,
     RotateCw,
-    Tag,
-    Hash,
   } from '@lucide/svelte';
-  import {
-    filterNotes,
-    getAllTagsWithCounts,
-    normalizeTag,
-    isValidTag,
-  } from '../utils/tags';
 
   let {
     isOpen,
@@ -84,7 +76,6 @@
   } = $props();
 
   let foldersSectionOpen = $state<boolean>(true);
-  let recentSectionOpen = $state<boolean>(true);
 
   // Folder expansion tracking with localStorage persistence
   function loadExpandedFolders(): Set<string> {
@@ -120,7 +111,6 @@
 
   // Context Menu State
   type ContextMenuTarget =
-    | { type: 'recent'; item: RecentItem }
     | { type: 'file'; path: string; name: string }
     | { type: 'folder'; path: string; name: string; isRoot: boolean };
 
@@ -140,25 +130,7 @@
   let newSubfolderName = $state('');
   let newSubfolderInputEl = $state<HTMLInputElement | null>(null);
 
-  let showAddTagModal = $state<RecentItem | null>(null);
-  let newTagInput = $state('');
-  let addTagInputEl = $state<HTMLInputElement | null>(null);
-
-  // Drag-and-drop state
-  let draggedIndex = $state<number | null>(null);
-  let dragOverIndex = $state<number | null>(null);
-  let dragPosition = $state<'before' | 'after' | null>(null);
   let isExternalDragOver = $state<boolean>(false);
-
-  function handleRecentContextMenu(e: MouseEvent, item: RecentItem) {
-    e.preventDefault();
-    e.stopPropagation();
-    const menuWidth = 160;
-    const menuHeight = 160;
-    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 8);
-    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 8);
-    contextMenu = { x, y, target: { type: 'recent', item } };
-  }
 
   function handleFolderContextMenu(e: MouseEvent, path: string, name: string, isRoot: boolean) {
     e.preventDefault();
@@ -220,34 +192,6 @@
     showNewSubfolderModal = null;
   }
 
-  function promptAddTag(item: RecentItem) {
-    contextMenu = null;
-    showAddTagModal = item;
-    newTagInput = '';
-    setTimeout(() => {
-      addTagInputEl?.focus();
-    }, 50);
-  }
-
-  function submitAddTag(e?: Event) {
-    if (e) e.preventDefault();
-    if (!showAddTagModal || !newTagInput.trim()) return;
-    if (!isValidTag(newTagInput)) return;
-    onAddTagToNote?.(showAddTagModal, newTagInput.trim());
-    showAddTagModal = null;
-    newTagInput = '';
-  }
-
-  function promptRename(item: RecentItem) {
-    contextMenu = null;
-    const key = item.path || item.id || '';
-    renameName = item.title;
-    showRenameModal = { pathOrId: key, title: item.title };
-    setTimeout(() => {
-      renameInputEl?.focus();
-      renameInputEl?.select();
-    }, 50);
-  }
 
   function promptRenameItem(path: string, name: string) {
     contextMenu = null;
@@ -266,12 +210,6 @@
     showRenameModal = null;
   }
 
-  function promptDelete(item: RecentItem) {
-    contextMenu = null;
-    const key = item.path || item.id || '';
-    showDeleteModal = { pathOrId: key, title: item.title, isDiskFile: !!item.path };
-  }
-
   function promptDeleteItem(path: string, name: string) {
     contextMenu = null;
     showDeleteModal = { pathOrId: path, title: name, isDiskFile: true };
@@ -281,78 +219,6 @@
     if (!showDeleteModal) return;
     onDeleteFile?.(showDeleteModal.pathOrId);
     showDeleteModal = null;
-  }
-
-  function getDisplayPath(fullPath: string | null): string {
-    if (!fullPath) return '';
-    const parts = fullPath.replace(/[\\/]+$/, '').split(/[\\/]/);
-    if (parts.length > 2) {
-      return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
-    }
-    return fullPath;
-  }
-
-  const availableTags = $derived(getAllTagsWithCounts(recentItems));
-  const filteredRecentItems = $derived(
-    activeTagFilter ? filterNotes(recentItems, '', activeTagFilter) : recentItems
-  );
-
-  // --- Drag and Drop Handlers for Recent Items ---
-  function handleDragStart(e: DragEvent, index: number, item: RecentItem) {
-    draggedIndex = index;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', item.path || item.title);
-      e.dataTransfer.setData('application/x-tex-item-index', String(index));
-    }
-  }
-
-  function handleItemDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    if (draggedIndex === null) return;
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = 'move';
-    }
-    const targetEl = e.currentTarget as HTMLElement;
-    const rect = targetEl.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    dragOverIndex = index;
-    dragPosition = e.clientY < midY ? 'before' : 'after';
-  }
-
-  function handleItemDragLeave() {}
-
-  function handleDragEnd() {
-    draggedIndex = null;
-    dragOverIndex = null;
-    dragPosition = null;
-    isExternalDragOver = false;
-  }
-
-  function handleItemDrop(e: DragEvent, targetIndex: number) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (draggedIndex !== null) {
-      if (draggedIndex !== targetIndex) {
-        const list = [...recentItems];
-        const [moved] = list.splice(draggedIndex, 1);
-        let insertIndex = targetIndex;
-        if (dragPosition === 'after') {
-          insertIndex = draggedIndex < targetIndex ? targetIndex : targetIndex + 1;
-        } else {
-          insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-        }
-        insertIndex = Math.max(0, Math.min(list.length, insertIndex));
-        list.splice(insertIndex, 0, moved);
-        onReorderNotes?.(list);
-      }
-      handleDragEnd();
-      return;
-    }
-
-    handleExternalDrop(e);
-    handleDragEnd();
   }
 
   function handleContainerDragOver(e: DragEvent) {
@@ -399,7 +265,7 @@
   }}
   oncontextmenu={(e) => {
     const target = e.target as HTMLElement;
-    if (!target.closest('.recent-item') && !target.closest('.tree-item')) {
+    if (!target.closest('.tree-item')) {
       contextMenu = null;
     }
   }}
@@ -410,7 +276,6 @@
       showDeleteModal = null;
       showNewNoteModal = null;
       showNewSubfolderModal = null;
-      showAddTagModal = null;
     }
   }}
 />
@@ -694,160 +559,6 @@
         {/if}
       </div>
 
-      <!-- Section: Recent Notes -->
-      <div class="sidebar-section">
-        <div
-          class="section-header"
-          onclick={() => { recentSectionOpen = !recentSectionOpen; }}
-          role="button"
-          tabindex="0"
-          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') recentSectionOpen = !recentSectionOpen; }}
-        >
-          <div class="section-header-left">
-            <span class="section-chevron">
-              {#if recentSectionOpen}
-                <ChevronDown size={12} />
-              {:else}
-                <ChevronRight size={12} />
-              {/if}
-            </span>
-            <span class="section-title">Recent</span>
-            {#if recentItems.length > 0}
-              <span class="section-count">{filteredRecentItems.length}</span>
-            {/if}
-          </div>
-          <div class="section-header-actions" role="group">
-            <button
-              class="section-action-btn"
-              title="New Note (Ctrl+N)"
-              onclick={(e) => {
-                e.stopPropagation();
-                onNewNote();
-              }}
-              type="button"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-        </div>
-
-        {#if recentSectionOpen}
-          <div class="section-body">
-            {#if filteredRecentItems.length === 0}
-              <div class="empty-state">
-                {#if activeTagFilter}
-                  <span>No notes with tag #{activeTagFilter}</span>
-                  <div class="empty-action">
-                    <button
-                      class="btn-clear-tag-filter"
-                      onclick={() => {
-                        activeTagFilter = null;
-                        onSelectTagFilter?.(null);
-                      }}
-                      type="button"
-                    >
-                      <X size={12} />
-                      <span>Clear tag filter</span>
-                    </button>
-                  </div>
-                {:else}
-                  No recent notes
-                  <div class="empty-action">
-                    <button class="btn-create-note" onclick={() => onNewNote()} type="button">
-                      <Plus size={13} />
-                      <span>Create note</span>
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            {:else}
-              <div class="recent-list" role="list">
-                {#each filteredRecentItems as item, index (item.id || item.path || item.title)}
-                  {@const isSelected = item.id ? item.id === activeId : (item.path && item.path === activeId)}
-                  {@const isDraggingThis = draggedIndex === index}
-                  {@const isTargetThis = dragOverIndex === index}
-                  <div
-                    class="recent-item"
-                    class:active={isSelected}
-                    class:is-dragging={isDraggingThis}
-                    class:drop-line-before={isTargetThis && dragPosition === 'before'}
-                    class:drop-line-after={isTargetThis && dragPosition === 'after'}
-                    draggable="true"
-                    ondragstart={(e) => handleDragStart(e, index, item)}
-                    ondragover={(e) => handleItemDragOver(e, index)}
-                    ondragleave={handleItemDragLeave}
-                    ondragend={handleDragEnd}
-                    ondrop={(e) => handleItemDrop(e, index)}
-                    onclick={() => onSelectNote(item)}
-                    oncontextmenu={(e) => handleRecentContextMenu(e, item)}
-                    role="listitem"
-                    tabindex="0"
-                    onkeydown={(e) => { if (e.key === 'Enter') onSelectNote(item); }}
-                  >
-                    <div class="recent-item-main">
-                      <div class="recent-item-header">
-                        <FileText size={13} class="recent-file-icon" />
-                        <span class="recent-item-title" title={item.path || item.title}>
-                          {item.title}
-                        </span>
-                        {#if item.isDirty}
-                          <span class="dirty-indicator" title="Unsaved changes">●</span>
-                        {/if}
-                      </div>
-                      {#if item.path}
-                        <div class="recent-item-path" title={item.path}>
-                          {getDisplayPath(item.path)}
-                        </div>
-                      {:else if item.preview}
-                        <div class="recent-item-preview">
-                          {item.preview}
-                        </div>
-                      {/if}
-                      {#if item.tags && item.tags.length > 0}
-                        <div class="recent-item-tags">
-                          {#each item.tags.slice(0, 3) as tag (tag)}
-                            <span
-                              class="item-tag"
-                              role="button"
-                              tabindex="0"
-                              onclick={(e) => {
-                                e.stopPropagation();
-                                activeTagFilter = tag;
-                                onSelectTagFilter?.(tag);
-                              }}
-                              onkeydown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.stopPropagation();
-                                  activeTagFilter = tag;
-                                  onSelectTagFilter?.(tag);
-                                }
-                              }}
-                            >#{tag}</span>
-                          {/each}
-                          {#if item.tags.length > 3}
-                            <span class="item-tag-more">+{item.tags.length - 3}</span>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-
-                    {#if onCloseNote}
-                      <button
-                        class="recent-item-close"
-                        title="Close note"
-                        onclick={(e) => onCloseNote(item, e)}
-                        type="button"
-                      >
-                        <X size={12} />
-                      </button>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
     </div>
 
     <!-- Footer -->
@@ -860,7 +571,6 @@
       >
         <Search size={13} />
         <span class="btn-label">Find</span>
-        <span class="shortcut-tag">Ctrl+P</span>
       </button>
 
       <button
@@ -871,7 +581,6 @@
       >
         <Download size={13} />
         <span class="btn-label">Export</span>
-        <span class="shortcut-tag">Ctrl+Shift+E</span>
       </button>
 
       <button
@@ -882,7 +591,6 @@
       >
         <SettingsIcon size={13} />
         <span class="btn-label">Settings</span>
-        <span class="shortcut-tag">Ctrl+,</span>
       </button>
     </div>
   </aside>
@@ -1017,61 +725,6 @@
         <Trash2 size={13} />
         <span>Delete</span>
       </button>
-    {:else if contextMenu.target.type === 'recent'}
-      <div class="context-menu-header">
-        <span class="context-menu-title">{contextMenu.target.item.title}</span>
-      </div>
-      <button
-        class="context-menu-item"
-        onclick={() => {
-          const t = contextMenu!.target;
-          if (t.type === 'recent') promptAddTag(t.item);
-        }}
-        type="button"
-        role="menuitem"
-      >
-        <Tag size={13} />
-        <span>Add Tag...</span>
-      </button>
-      <button
-        class="context-menu-item"
-        onclick={() => {
-          const t = contextMenu!.target;
-          if (t.type === 'recent') promptRename(t.item);
-        }}
-        type="button"
-        role="menuitem"
-      >
-        <Edit2 size={13} />
-        <span>Rename</span>
-      </button>
-      <button
-        class="context-menu-item danger"
-        onclick={() => {
-          const t = contextMenu!.target;
-          if (t.type === 'recent') promptDelete(t.item);
-        }}
-        type="button"
-        role="menuitem"
-      >
-        <Trash2 size={13} />
-        <span>Delete</span>
-      </button>
-      {#if onCloseNote}
-        <button
-          class="context-menu-item"
-          onclick={(e) => {
-            const t = contextMenu!.target;
-            if (t.type === 'recent') onCloseNote(t.item, e);
-            contextMenu = null;
-          }}
-          type="button"
-          role="menuitem"
-        >
-          <X size={13} />
-          <span>Close Note</span>
-        </button>
-      {/if}
     {/if}
   </div>
 {/if}
@@ -1176,85 +829,6 @@
   </div>
 {/if}
 
-<!-- Add Tag Modal -->
-{#if showAddTagModal}
-  <div
-    class="modal-overlay"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    onclick={() => { showAddTagModal = null; }}
-    onkeydown={(e) => { if (e.key === 'Escape') showAddTagModal = null; }}
-  >
-    <div
-      class="modal-card add-tag-modal"
-      role="document"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-    >
-      <div class="modal-title">
-        <Tag size={13} style="margin-right: 6px; color: var(--accent);" />
-        <span>Add Tag</span>
-      </div>
-      <form onsubmit={submitAddTag}>
-        <div class="modal-input-row">
-          <input
-            bind:this={addTagInputEl}
-            type="text"
-            placeholder="Tag name (e.g. project, todo)"
-            bind:value={newTagInput}
-            class="tui-modal-input"
-          />
-        </div>
-        {#if availableTags.length > 0}
-          {@const filteredSuggestions = availableTags
-            .filter((t) => !(showAddTagModal?.tags || []).includes(t.tag))
-            .filter((t) => {
-              const q = normalizeTag(newTagInput);
-              return !q || t.tag.includes(q);
-            })
-            .slice(0, 6)}
-          {#if filteredSuggestions.length > 0}
-            <div class="tag-suggestions">
-              <span class="tag-suggestions-label">Suggestions:</span>
-              <div class="tag-suggestions-list">
-                {#each filteredSuggestions as suggestion}
-                  <button
-                    type="button"
-                    class="tag-suggestion-chip"
-                    onclick={() => {
-                      newTagInput = suggestion.tag;
-                      addTagInputEl?.focus();
-                    }}
-                  >
-                    #{suggestion.tag}
-                    <span class="tag-count">{suggestion.count}</span>
-                  </button>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        {/if}
-        <div class="modal-actions">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick={() => { showAddTagModal = null; }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            disabled={!isValidTag(newTagInput)}
-          >
-            Add Tag
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
 
 <!-- Rename Modal -->
 {#if showRenameModal}
@@ -1356,7 +930,9 @@
   .sidebar {
     width: 260px;
     height: 100%;
-    background-color: var(--bg-sidebar);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background-color: rgba(11, 11, 13, 0.88);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -1374,7 +950,7 @@
     justify-content: space-between;
     padding: 10px 12px;
     border-bottom: 1px solid var(--border);
-    background-color: var(--bg-sidebar);
+    background-color: transparent;
   }
 
   .workspace-meta {
@@ -1741,241 +1317,31 @@
     text-decoration: underline;
   }
 
-  /* Recent List Items */
-  .empty-state {
-    font-size: 11px;
-    color: var(--text-muted);
-    padding: 20px 12px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .empty-action {
-    display: flex;
-    justify-content: center;
-  }
-
-  .btn-create-note {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    background-color: var(--bg-hover);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-main);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    transition: all 0.12s ease;
-  }
-
-  .btn-create-note:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background-color: var(--bg-active);
-  }
-
-  .recent-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .recent-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 8px;
-    border: 1px solid transparent;
-    border-left: 2px solid transparent;
-    border-radius: 4px;
-    background-color: transparent;
-    cursor: pointer;
-    transition: background-color 0.12s ease, border-color 0.12s ease;
-    outline: none;
-    position: relative;
-  }
-
-  .recent-item:hover {
-    background-color: var(--bg-hover);
-  }
-
-  .recent-item.active {
-    background-color: var(--bg-active);
-    border-left-color: var(--accent);
-  }
-
-  .recent-item.is-dragging {
-    opacity: 0.35;
-    background-color: var(--bg-hover);
-  }
-
-  .recent-item.drop-line-before::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: 4px;
-    right: 4px;
-    height: 2px;
-    background-color: var(--accent);
-    border-radius: 1px;
-    z-index: 10;
-  }
-
-  .recent-item.drop-line-after::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 4px;
-    right: 4px;
-    height: 2px;
-    background-color: var(--accent);
-    border-radius: 1px;
-    z-index: 10;
-  }
-
-  .recent-item-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .recent-item-header {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-  }
-
-  :global(.recent-file-icon) {
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .recent-item.active :global(.recent-file-icon) {
-    color: var(--accent);
-  }
-
-  .recent-item-title {
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--text-main);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .recent-item.active .recent-item-title {
-    color: var(--text-bright);
-    font-weight: 600;
-  }
-
-  .dirty-indicator {
-    color: var(--dirty);
-    font-size: 8px;
-    flex-shrink: 0;
-  }
-
-  .recent-item-path,
-  .recent-item-preview {
-    font-size: 10px;
-    color: var(--text-muted);
-    padding-left: 20px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.75;
-  }
-
-  .recent-item-tags {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 3px;
-    padding-left: 20px;
-    margin-top: 1px;
-    margin-bottom: 2px;
-  }
-
-  .item-tag {
-    font-size: 9.5px;
-    color: var(--accent);
-    background-color: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.18);
-    border-radius: 3px;
-    padding: 0 4px;
-    cursor: pointer;
-    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-    white-space: nowrap;
-    line-height: 1.4;
-    user-select: none;
-  }
-
-  .item-tag:hover {
-    background-color: rgba(56, 189, 248, 0.2);
-    border-color: var(--accent);
-    color: var(--text-bright);
-  }
-
-  .item-tag-more {
-    font-size: 9px;
-    color: var(--text-muted);
-    opacity: 0.8;
-  }
-
-  .recent-item-close {
-    opacity: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    margin-left: 4px;
-    border-radius: 3px;
-    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
-  }
-
-  .recent-item:hover .recent-item-close {
-    opacity: 1;
-  }
-
-  .recent-item-close:hover {
-    color: var(--danger);
-    background-color: rgba(248, 113, 113, 0.15);
-  }
 
   /* Footer */
   .sidebar-footer {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     padding: 8px 10px;
+    gap: 6px;
     border-top: 1px solid var(--border);
-    background-color: var(--bg-sidebar);
+    background-color: transparent;
   }
 
   .footer-btn {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 7px;
-    width: 100%;
+    justify-content: center;
+    gap: 5px;
     padding: 5px 8px;
+    font-size: 11px;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
     color: var(--text-muted);
-    font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
     transition: background-color 0.12s ease, color 0.12s ease;
@@ -1988,13 +1354,6 @@
 
   .btn-label {
     font-weight: 500;
-  }
-
-  .shortcut-tag {
-    margin-left: auto;
-    font-size: 9.5px;
-    color: var(--text-muted);
-    opacity: 0.75;
   }
 
   /* Context Menu */

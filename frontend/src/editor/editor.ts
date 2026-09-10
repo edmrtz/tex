@@ -18,7 +18,6 @@ import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
 import { vim, Vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
-import { createMarkdownAutocompleteExtension } from './completions';
 import {
   editorThemeDark,
   editorThemeLight,
@@ -34,6 +33,9 @@ export interface EditorCallbacks {
   onCursorChange: (pos: CursorPosition) => void;
   onSaveShortcut: () => void;
   onFindShortcut: () => void;
+  onToggleSidebar?: () => void;
+  onToggleMode?: () => void;
+  onQuickSwitcher?: () => void;
   onPasteImage?: (file: File) => void;
   getWorkspaceFiles?: () => string[];
 }
@@ -254,6 +256,31 @@ export function createMarkdownEditor(
       run: (v) => handleListTab(v, true),
     },
     indentWithTab,
+  ]);
+
+
+  const appPriorityKeymap = keymap.of([
+    {
+      key: 'Mod-b',
+      run: () => {
+        callbacks.onToggleSidebar?.();
+        return true;
+      },
+    },
+    {
+      key: 'Mod-e',
+      run: () => {
+        callbacks.onToggleMode?.();
+        return true;
+      },
+    },
+    {
+      key: 'Mod-p',
+      run: () => {
+        callbacks.onQuickSwitcher?.();
+        return true;
+      },
+    },
     {
       key: 'Mod-s',
       run: () => {
@@ -269,7 +296,6 @@ export function createMarkdownEditor(
       },
     },
   ]);
-
 
   const domEventHandlers = EditorView.domEventHandlers({
     paste(event, view) {
@@ -304,6 +330,7 @@ export function createMarkdownEditor(
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
+      appPriorityKeymap,
       vimCompartment.of(getVimExtension(settings.vimMode)),
       cursorVisibilityCompartment.of(getCursorVisibilityExtension(mode)),
       history(),
@@ -320,7 +347,6 @@ export function createMarkdownEditor(
         codeLanguages: languages,
         addKeymap: true,
       }),
-      createMarkdownAutocompleteExtension(callbacks.getWorkspaceFiles),
       domEventHandlers,
       widthCompartment.of(getWidthExtension(settings.editorWidth)),
       modeCompartment.of(getModeExtension(mode)),

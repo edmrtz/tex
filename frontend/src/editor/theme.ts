@@ -81,6 +81,97 @@ export function createEditorWidthTheme(mode: 'full' | 'wide' | 'centered' = 'ful
 // Backward compatibility alias
 export const createFontSizeTheme = (sizePx: number) => createFontTheme(sizePx, 'system', 'default');
 
+const VIM_STYLE_ID = 'tex-vim-cmdline-styles';
+
+export function ensureVimCmdlineStyles() {
+  if (typeof document === 'undefined' || document.getElementById(VIM_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = VIM_STYLE_ID;
+  style.textContent = `
+.cm-vim-panel {
+  position: fixed !important;
+  top: 35% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 1000 !important;
+  min-width: 440px !important;
+  max-width: 90vw !important;
+  background: var(--bg-card, #18181c) !important;
+  border: 1px solid var(--accent, #38bdf8) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75) !important;
+  padding: 10px 16px !important;
+  font-family: var(--font-mono) !important;
+  color: var(--text-bright, #ffffff) !important;
+  border-radius: 0px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.cm-vim-panel input {
+  background: transparent !important;
+  color: var(--text-bright, #ffffff) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13.5px !important;
+  border: none !important;
+  outline: none !important;
+  width: 100% !important;
+}
+
+body:has(.cm-vim-panel) .main-workspace,
+body:has(.cm-vim-panel) .sidebar,
+body:has(.cm-vim-panel) .tui-window-titlebar,
+html:has(.cm-vim-panel) .main-workspace,
+html:has(.cm-vim-panel) .sidebar,
+html:has(.cm-vim-panel) .tui-window-titlebar {
+  filter: blur(4px) !important;
+  transition: filter 0.15s ease !important;
+  pointer-events: none !important;
+}
+
+body:has(.cm-vim-panel)::after,
+html:has(.cm-vim-panel)::after {
+  content: '' !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 999 !important;
+  pointer-events: none !important;
+}
+
+/* Light mode styles */
+html[data-theme="light"] .cm-vim-panel,
+body[data-theme="light"] .cm-vim-panel,
+.theme-light .cm-vim-panel {
+  background: var(--bg-card, #ffffff) !important;
+  border: 1px solid var(--accent, #0284c7) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+  color: var(--text-bright, #09090b) !important;
+}
+
+html[data-theme="light"] .cm-vim-panel input,
+body[data-theme="light"] .cm-vim-panel input,
+.theme-light .cm-vim-panel input {
+  color: var(--text-bright, #09090b) !important;
+}
+
+html[data-theme="light"]:has(.cm-vim-panel)::after,
+body[data-theme="light"]:has(.cm-vim-panel)::after {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+`;
+  document.head.appendChild(style);
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureVimCmdlineStyles);
+  } else {
+    ensureVimCmdlineStyles();
+  }
+}
+
 export const editorThemeDark = EditorView.theme({
   '&': {
     height: '100%',
@@ -491,6 +582,34 @@ export const editorThemeDark = EditorView.theme({
     color: 'var(--accent, #38bdf8) !important',
     textDecoration: 'none !important',
     fontWeight: '700',
+  },
+  '.cm-vim-panel': {
+    position: 'fixed !important',
+    top: '35% !important',
+    left: '50% !important',
+    transform: 'translate(-50%, -50%) !important',
+    zIndex: '1000 !important',
+    minWidth: '440px !important',
+    maxWidth: '90vw !important',
+    background: 'var(--bg-card, #18181c) !important',
+    border: '1px solid var(--accent, #38bdf8) !important',
+    boxShadow: '0 16px 48px rgba(0, 0, 0, 0.75) !important',
+    padding: '10px 16px !important',
+    fontFamily: 'var(--font-mono) !important',
+    color: 'var(--text-bright, #ffffff) !important',
+    borderRadius: '0px !important',
+    display: 'flex !important',
+    alignItems: 'center !important',
+    gap: '8px !important',
+  },
+  '.cm-vim-panel input': {
+    background: 'transparent !important',
+    color: 'var(--text-bright, #ffffff) !important',
+    fontFamily: 'var(--font-mono) !important',
+    fontSize: '13.5px !important',
+    border: 'none !important',
+    outline: 'none !important',
+    width: '100% !important',
   },
 });
 
@@ -903,6 +1022,34 @@ export const editorThemeLight = EditorView.theme({
     color: 'var(--accent, #0284c7) !important',
     textDecoration: 'none !important',
     fontWeight: '700',
+  },
+  '.cm-vim-panel': {
+    position: 'fixed !important',
+    top: '35% !important',
+    left: '50% !important',
+    transform: 'translate(-50%, -50%) !important',
+    zIndex: '1000 !important',
+    minWidth: '440px !important',
+    maxWidth: '90vw !important',
+    background: 'var(--bg-card, #ffffff) !important',
+    border: '1px solid var(--accent, #0284c7) !important',
+    boxShadow: '0 16px 48px rgba(0, 0, 0, 0.18) !important',
+    padding: '10px 16px !important',
+    fontFamily: 'var(--font-mono) !important',
+    color: 'var(--text-bright, #09090b) !important',
+    borderRadius: '0px !important',
+    display: 'flex !important',
+    alignItems: 'center !important',
+    gap: '8px !important',
+  },
+  '.cm-vim-panel input': {
+    background: 'transparent !important',
+    color: 'var(--text-bright, #09090b) !important',
+    fontFamily: 'var(--font-mono) !important',
+    fontSize: '13.5px !important',
+    border: 'none !important',
+    outline: 'none !important',
+    width: '100% !important',
   },
 });
 

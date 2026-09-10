@@ -112,7 +112,7 @@
 
   // State
   let sidebarOpen = $state<boolean>(true);
-  let zenMode = $state<boolean>(false);
+  let sidebarHovered = $state<boolean>(false);
   let notes = $state<NoteDocument[]>([]);
   let activeNoteId = $state<string>('');
   let currentFolder = $state<string>('');
@@ -861,6 +861,7 @@
 
   function toggleSidebar() {
     sidebarOpen = !sidebarOpen;
+    sidebarHovered = false;
   }
 
   function zoomIn() {
@@ -881,17 +882,6 @@
   function handleKeyDown(e: KeyboardEvent) {
     if (e.defaultPrevented) return;
 
-    if (e.key === 'F11' || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
-      e.preventDefault();
-      zenMode = !zenMode;
-      return;
-    }
-
-    if (e.key === 'Escape' && zenMode) {
-      e.preventDefault();
-      zenMode = false;
-      return;
-    }
 
     if (e.ctrlKey || e.metaKey) {
       if ((e.key === 'p' || e.key === 'P' || e.key === 'k' || e.key === 'K') && !e.shiftKey) {
@@ -1032,6 +1022,11 @@
           },
           onPasteImage: handlePasteImage,
           getWorkspaceFiles: getAllWorkspaceFiles,
+          onToggleSidebar: toggleSidebar,
+          onToggleMode: toggleEditorMode,
+          onQuickSwitcher: () => {
+            showQuickSwitcher = true;
+          },
         }
       );
     }
@@ -1165,41 +1160,64 @@
   </div>
 
   <!-- App Body (Sidebar + Editor) -->
-  <div class="app-body" class:zen-mode-active={zenMode}>
-    <!-- Left File Tree Sidebar -->
-    <Sidebar
-      isOpen={sidebarOpen && !zenMode}
-      activeId={activeNoteId}
-      {recentItems}
-      folders={sidebarFolders}
-      bind:activeTagFilter
-      onSelectTagFilter={handleSelectTagFilter}
-      onAddTagToNote={handleAddTagToNote}
-      onSelectNote={handleSelectRecent}
-      onCloseNote={handleCloseRecent}
-      onNewNote={(folderPath) => {
-        if (folderPath) {
-          handleCreateFileInFolder(folderPath, 'Untitled.md');
-        } else {
-          addNote();
-        }
-      }}
-      onOpenFile={handleOpenFile}
-      onOpenFolder={handleOpenFolder}
-      onAddFolder={handleAddFolder}
-      onRemoveFolder={handleRemoveFolder}
-      onRefreshFolder={handleRefreshFolder}
-      onCreateFileInFolder={handleCreateFileInFolder}
-      onCreateSubfolder={handleCreateSubfolder}
-      onToggleSidebar={toggleSidebar}
-      onFind={() => { showQuickSwitcher = true; }}
-      onExport={handleExportHTML}
-      onOpenSettings={() => { showSettingsModal = true; }}
-      onRenameFile={handleRenameFile}
-      onDeleteFile={handleDeleteFile}
-      onReorderNotes={handleReorderNotes}
-      onDropExternalFiles={handleDropExternalFiles}
-    />
+{#snippet sidebarView()}
+  <Sidebar
+    isOpen={true}
+    activeId={activeNoteId}
+    {recentItems}
+    folders={sidebarFolders}
+    bind:activeTagFilter
+    onSelectTagFilter={handleSelectTagFilter}
+    onAddTagToNote={handleAddTagToNote}
+    onSelectNote={handleSelectRecent}
+    onCloseNote={handleCloseRecent}
+    onNewNote={(folderPath) => {
+      if (folderPath) {
+        handleCreateFileInFolder(folderPath, 'Untitled.md');
+      } else {
+        addNote();
+      }
+    }}
+    onOpenFile={handleOpenFile}
+    onOpenFolder={handleOpenFolder}
+    onAddFolder={handleAddFolder}
+    onRemoveFolder={handleRemoveFolder}
+    onRefreshFolder={handleRefreshFolder}
+    onCreateFileInFolder={handleCreateFileInFolder}
+    onCreateSubfolder={handleCreateSubfolder}
+    onToggleSidebar={toggleSidebar}
+    onFind={() => { showQuickSwitcher = true; }}
+    onExport={handleExportHTML}
+    onOpenSettings={() => { showSettingsModal = true; }}
+    onRenameFile={handleRenameFile}
+    onDeleteFile={handleDeleteFile}
+    onReorderNotes={handleReorderNotes}
+    onDropExternalFiles={handleDropExternalFiles}
+  />
+{/snippet}
+
+  <!-- App Body (Sidebar + Editor) -->
+  <div class="app-body">
+    {#if !sidebarOpen}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="sidebar-hover-zone"
+        onmouseenter={() => { sidebarHovered = true; }}
+        aria-hidden="true"
+      ></div>
+    {/if}
+
+    {#if sidebarOpen}
+      {@render sidebarView()}
+    {:else if sidebarHovered}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="sidebar-floating"
+        onmouseleave={() => { sidebarHovered = false; }}
+      >
+        {@render sidebarView()}
+      </div>
+    {/if}
 
     <!-- Main Workspace -->
     <div class="main-workspace">
@@ -1232,14 +1250,6 @@
 
         <div class="header-right">
           <button
-            class="mode-badge-btn"
-            title="Zen Mode (Ctrl+Shift+Z / F11)"
-            onclick={() => { zenMode = !zenMode; }}
-            type="button"
-          >
-            <span>[zen]</span>
-          </button>
-          <button
             class="icon-btn"
             title="Save File (Ctrl+S)"
             onclick={handleSave}
@@ -1266,7 +1276,7 @@
         </div>
       </header>
 
-      {#if activeNote && !zenMode}
+      {#if activeNote}
         <TagBar
           tags={activeNote.tags || []}
           {allWorkspaceTags}
@@ -1277,17 +1287,7 @@
       {/if}
 
       <!-- Editor Container -->
-      <main class="editor-container" class:zen-mode-active={zenMode}>
-        {#if zenMode}
-          <button
-            class="zen-exit-btn"
-            onclick={() => { zenMode = false; }}
-            type="button"
-            title="Exit Zen Mode (Escape / F11)"
-          >
-            [exit zen]
-          </button>
-        {/if}
+      <main class="editor-container">
         <FindReplace
           view={editorInstance?.view || null}
           isOpen={showFindReplace}
@@ -1514,6 +1514,38 @@
     gap: 4px;
     flex-shrink: 0;
     z-index: 2;
+    opacity: 0;
+    transition: opacity 0.18s ease-in-out;
+    pointer-events: none;
+  }
+
+  .document-header:hover .header-right,
+  .header-right:hover,
+  .header-right:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-hover-zone {
+    position: absolute;
+    top: 30px;
+    bottom: 0;
+    left: 0;
+    width: 10px;
+    z-index: 40;
+    background: transparent;
+  }
+
+  .sidebar-floating {
+    position: absolute;
+    top: 30px;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    width: 260px;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    height: calc(100% - 30px);
   }
 
   .mode-badge-btn {
@@ -1572,56 +1604,6 @@
     overflow: hidden;
   }
 
-
-  /* Zen Mode */
-  .zen-mode-active .document-header {
-    display: none !important;
-  }
-
-  .zen-mode-active :global(.tag-bar) {
-    display: none !important;
-  }
-
-  .zen-mode-active.editor-container,
-  .zen-mode-active .editor-container {
-    max-width: 100%;
-    margin: 0 auto;
-  }
-
-  .zen-mode-active :global(.cm-scroller) {
-    justify-content: center !important;
-  }
-
-  .zen-mode-active :global(.cm-content) {
-    max-width: 860px !important;
-    width: 100% !important;
-    margin: 0 auto !important;
-    padding-top: 36px !important;
-  }
-
-  .zen-exit-btn {
-    position: absolute;
-    top: 12px;
-    right: 18px;
-    z-index: 50;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 3px 8px;
-    cursor: pointer;
-    border-radius: 0px;
-    opacity: 0.6;
-    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
-  }
-
-  .zen-exit-btn:hover {
-    opacity: 1;
-    color: var(--accent);
-    background-color: var(--bg-hover);
-    border-color: var(--border-focus);
-  }
 
   @media print {
     :global(body) {
