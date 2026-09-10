@@ -83,8 +83,6 @@
     onDropExternalFiles?: (filePaths: string[]) => void;
   } = $props();
 
-  let searchQuery = $state('');
-  let isTagSearchMode = $state<boolean>(false);
   let foldersSectionOpen = $state<boolean>(true);
   let recentSectionOpen = $state<boolean>(true);
 
@@ -116,7 +114,6 @@
   }
 
   function isFolderExpanded(folderPath: string, isRoot = false): boolean {
-    if (searchQuery.trim()) return true; // auto-expand matching items when searching
     if (expandedFolders.size === 0 && isRoot) return true; // expand root folders by default on initial load
     return expandedFolders.has(folderPath);
   }
@@ -295,30 +292,10 @@
     return fullPath;
   }
 
-  function filterTreeItems(items: FileTreeItem[], query: string): FileTreeItem[] {
-    if (!query.trim()) return items;
-    const q = query.toLowerCase();
-    const result: FileTreeItem[] = [];
-    for (const item of items) {
-      if (item.isDir) {
-        const filteredChildren = filterTreeItems(item.children || [], query);
-        if (filteredChildren.length > 0 || item.name.toLowerCase().includes(q)) {
-          result.push({
-            ...item,
-            children: filteredChildren,
-          });
-        }
-      } else {
-        if (item.name.toLowerCase().includes(q) || item.path.toLowerCase().includes(q)) {
-          result.push(item);
-        }
-      }
-    }
-    return result;
-  }
-
   const availableTags = $derived(getAllTagsWithCounts(recentItems));
-  const filteredRecentItems = $derived(filterNotes(recentItems, searchQuery, activeTagFilter, isTagSearchMode));
+  const filteredRecentItems = $derived(
+    activeTagFilter ? filterNotes(recentItems, '', activeTagFilter) : recentItems
+  );
 
   // --- Drag and Drop Handlers for Recent Items ---
   function handleDragStart(e: DragEvent, index: number, item: RecentItem) {
@@ -559,83 +536,6 @@
       </div>
     </div>
 
-    <!-- Search Input -->
-    <div class="sidebar-search">
-      <div class="search-input-wrapper">
-        <Search size={13} class="search-icon" />
-        <input
-          type="text"
-          placeholder={isTagSearchMode ? 'Filter by tag (#...)' : 'Search notes & folders...'}
-          bind:value={searchQuery}
-          class="search-input"
-        />
-        {#if searchQuery || activeTagFilter}
-          <button
-            class="clear-search"
-            onclick={() => {
-              searchQuery = '';
-              activeTagFilter = null;
-              isTagSearchMode = false;
-              onSelectTagFilter?.(null);
-            }}
-            type="button"
-            title="Clear search"
-          >
-            <X size={12} />
-          </button>
-        {/if}
-        <button
-          class="tag-search-toggle"
-          class:active={isTagSearchMode}
-          onclick={() => {
-            isTagSearchMode = !isTagSearchMode;
-          }}
-          type="button"
-          title="Toggle tag search mode (or type #tag or tag:name)"
-        >
-          <Tag size={13} />
-        </button>
-      </div>
-    </div>
-
-    <!-- Available Tags Pill Tray -->
-    {#if availableTags.length > 0}
-      <div class="tags-tray" role="toolbar" aria-label="Tags filter">
-        {#if activeTagFilter}
-          <button
-            class="tag-pill active tag-clear-pill"
-            onclick={() => {
-              activeTagFilter = null;
-              onSelectTagFilter?.(null);
-            }}
-            type="button"
-            title="Clear tag filter"
-          >
-            <span>#{activeTagFilter}</span>
-            <X size={11} />
-          </button>
-        {/if}
-        {#each availableTags as tag (tag.tag)}
-          <button
-            class="tag-pill"
-            class:active={activeTagFilter === tag.tag}
-            onclick={() => {
-              if (activeTagFilter === tag.tag) {
-                activeTagFilter = null;
-              } else {
-                activeTagFilter = tag.tag;
-              }
-              onSelectTagFilter?.(activeTagFilter);
-            }}
-            type="button"
-            title="Filter notes by #{tag.tag}"
-          >
-            #{tag.tag} <span class="tag-count">{tag.count}</span>
-          </button>
-        {/each}
-      </div>
-    {/if}
-
     <!-- Scrollable Workspace & Notes List -->
     <div
       class="sidebar-content"
@@ -711,7 +611,7 @@
               <div class="folders-tree-list" role="tree">
                 {#each folders as folder (folder.path)}
                   {@const expanded = isFolderExpanded(folder.path, true)}
-                  {@const displayTree = searchQuery ? filterTreeItems(folder.tree, searchQuery) : folder.tree}
+                  {@const displayTree = folder.tree}
                   <div class="folder-root-block">
                     <div
                       class="tree-item folder-root-item"
@@ -850,8 +750,6 @@
                       <span>Clear tag filter</span>
                     </button>
                   </div>
-                {:else if searchQuery}
-                  No matching notes
                 {:else}
                   No recent notes
                   <div class="empty-action">
@@ -1517,152 +1415,6 @@
   .action-btn:hover {
     background-color: var(--bg-hover);
     color: var(--text-bright);
-  }
-
-  /* Search */
-  .sidebar-search {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .search-input-wrapper {
-    display: flex;
-    align-items: center;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    gap: 6px;
-    transition: border-color 0.12s ease, box-shadow 0.12s ease;
-  }
-
-  .search-input-wrapper:focus-within {
-    border-color: var(--border-focus);
-  }
-
-  :global(.search-icon) {
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .search-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-bright);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    width: 100%;
-  }
-
-  .search-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.8;
-  }
-
-  .clear-search {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 2px;
-  }
-
-  .clear-search:hover {
-    color: var(--text-bright);
-  }
-
-  .tag-search-toggle {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 3px;
-    transition: color 0.12s ease, background-color 0.12s ease;
-    flex-shrink: 0;
-  }
-
-  .tag-search-toggle:hover {
-    color: var(--text-bright);
-    background-color: var(--bg-hover);
-  }
-
-  .tag-search-toggle.active {
-    color: var(--accent);
-    background-color: var(--bg-active);
-  }
-
-  /* Tag Filters Tray */
-  .tags-tray {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border-subtle);
-    flex-wrap: wrap;
-    max-height: 72px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    background-color: var(--bg-sidebar);
-  }
-
-  .tags-tray::-webkit-scrollbar {
-    width: 3px;
-  }
-
-  .tags-tray::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 2px;
-  }
-
-  .tag-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-    user-select: none;
-  }
-
-  .tag-pill:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-bright);
-    border-color: var(--border);
-  }
-
-  .tag-pill.active {
-    background-color: var(--bg-active);
-    color: var(--accent);
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-
-  .tag-count {
-    font-size: 9px;
-    opacity: 0.75;
-    background-color: rgba(255, 255, 255, 0.06);
-    padding: 0 4px;
-    border-radius: 6px;
-  }
-
-  .tag-pill.active .tag-count {
-    background-color: rgba(56, 189, 248, 0.18);
   }
 
   .btn-clear-tag-filter {

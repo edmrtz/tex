@@ -113,6 +113,7 @@
 
   // State
   let sidebarOpen = $state<boolean>(true);
+  let zenMode = $state<boolean>(false);
   let notes = $state<NoteDocument[]>([]);
   let activeNoteId = $state<string>('');
   let currentFolder = $state<string>('');
@@ -337,13 +338,8 @@
 
   // Synchronize OS Window Title with active file & dirty status
   $effect(() => {
-    if (activeNote) {
-      const dirtyMark = activeNote.isDirty ? '● ' : '';
-      const name = activeNote.title || 'Untitled';
-      WindowSetTitle(`${dirtyMark}${name} — Tex`);
-    } else {
-      WindowSetTitle('Tex');
-    }
+    const dirtyMark = activeNote?.isDirty ? '● ' : '';
+    WindowSetTitle(`${dirtyMark}tex.md`);
   });
 
   function cleanPreview(content: string): string {
@@ -733,7 +729,8 @@
           notes = [...notes];
           recordRecentItem(res.name, res.path, targetNote.content);
           if (activeNoteId === targetNote.id) {
-            WindowSetTitle(`Tex - ${res.name}`);
+            const dirtyMark = targetNote.isDirty ? '● ' : '';
+            WindowSetTitle(`${dirtyMark}tex.md`);
           }
           await handleRefreshFolder();
           persistCurrentSession();
@@ -884,6 +881,19 @@
   // Keyboard shortcut listener
   function handleKeyDown(e: KeyboardEvent) {
     if (e.defaultPrevented) return;
+
+    if (e.key === 'F11' || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+      e.preventDefault();
+      zenMode = !zenMode;
+      return;
+    }
+
+    if (e.key === 'Escape' && zenMode) {
+      e.preventDefault();
+      zenMode = false;
+      return;
+    }
+
     if (e.ctrlKey || e.metaKey) {
       if ((e.key === 'p' || e.key === 'P' || e.key === 'k' || e.key === 'K') && !e.shiftKey) {
         e.preventDefault();
@@ -1144,9 +1154,7 @@
   <!-- Top TUI Window Titlebar -->
   <div class="tui-window-titlebar" style="--wails-draggable: drag;">
     <div class="titlebar-left">
-      <span class="tui-brand">tex</span>
-      <span class="tui-sep">//</span>
-      <span class="tui-title-text">{activeNote?.title || 'untitled'}</span>
+      <span class="tui-brand">tex.md</span>
       {#if activeNote?.isDirty}
         <span class="tui-dirty-dot">●</span>
       {/if}
@@ -1160,10 +1168,10 @@
   </div>
 
   <!-- App Body (Sidebar + Editor) -->
-  <div class="app-body">
+  <div class="app-body" class:zen-mode-active={zenMode}>
     <!-- Left File Tree Sidebar -->
     <Sidebar
-      isOpen={sidebarOpen}
+      isOpen={sidebarOpen && !zenMode}
       activeId={activeNoteId}
       {recentItems}
       folders={sidebarFolders}
@@ -1227,6 +1235,14 @@
 
         <div class="header-right">
           <button
+            class="mode-badge-btn"
+            title="Zen Mode (Ctrl+Shift+Z / F11)"
+            onclick={() => { zenMode = !zenMode; }}
+            type="button"
+          >
+            <span>[zen]</span>
+          </button>
+          <button
             class="icon-btn"
             title="Save File (Ctrl+S)"
             onclick={handleSave}
@@ -1253,7 +1269,7 @@
         </div>
       </header>
 
-      {#if activeNote}
+      {#if activeNote && !zenMode}
         <TagBar
           tags={activeNote.tags || []}
           {allWorkspaceTags}
@@ -1264,7 +1280,17 @@
       {/if}
 
       <!-- Editor Container -->
-      <main class="editor-container">
+      <main class="editor-container" class:zen-mode-active={zenMode}>
+        {#if zenMode}
+          <button
+            class="zen-exit-btn"
+            onclick={() => { zenMode = false; }}
+            type="button"
+            title="Exit Zen Mode (Escape / F11)"
+          >
+            [exit zen]
+          </button>
+        {/if}
         <FindReplace
           view={editorInstance?.view || null}
           isOpen={showFindReplace}
@@ -1590,6 +1616,56 @@
 
   .stat-sep {
     opacity: 0.4;
+  }
+
+  /* Zen Mode */
+  .zen-mode-active .document-header {
+    display: none !important;
+  }
+
+  .zen-mode-active :global(.tag-bar) {
+    display: none !important;
+  }
+
+  .zen-mode-active.editor-container,
+  .zen-mode-active .editor-container {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .zen-mode-active :global(.cm-scroller) {
+    justify-content: center !important;
+  }
+
+  .zen-mode-active :global(.cm-content) {
+    max-width: 860px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding-top: 36px !important;
+  }
+
+  .zen-exit-btn {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    z-index: 50;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    border-radius: 0px;
+    opacity: 0.6;
+    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+  }
+
+  .zen-exit-btn:hover {
+    opacity: 1;
+    color: var(--accent);
+    background-color: var(--bg-hover);
+    border-color: var(--border-focus);
   }
 
   @media print {

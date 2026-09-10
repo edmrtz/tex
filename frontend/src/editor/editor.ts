@@ -16,9 +16,9 @@ import { search, highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting } from '@codemirror/language';
-import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { vim } from '@replit/codemirror-vim';
 import { createLivePreviewPlugin } from './livePreview';
+import { createMarkdownAutocompleteExtension } from './completions';
 import {
   editorThemeDark,
   editorThemeLight,
@@ -53,6 +53,7 @@ export function createMarkdownEditor(
   const lineNumbersCompartment = new Compartment();
   const vimCompartment = new Compartment();
   const widthCompartment = new Compartment();
+  const readOnlyCompartment = new Compartment();
 
   function getModeExtension(m: EditorMode): Extension {
     return m === 'live' ? [createLivePreviewPlugin()] : [];
@@ -257,27 +258,6 @@ export function createMarkdownEditor(
     },
   ]);
 
-  const wikiAutocomplete = autocompletion({
-    override: [
-      (context: CompletionContext): CompletionResult | null => {
-        const word = context.matchBefore(/\[\[([^\]]*)/);
-        if (!word) return null;
-        const query = word.text.slice(2).toLowerCase();
-        const files = callbacks.getWorkspaceFiles ? callbacks.getWorkspaceFiles() : [];
-        return {
-          from: word.from + 2,
-          options: files.map((file) => {
-            const clean = file.replace(/\.md$/i, '');
-            return {
-              label: clean,
-              type: 'text',
-              apply: `${clean}]]`,
-            };
-          }).filter((opt) => opt.label.toLowerCase().includes(query)),
-        };
-      },
-    ],
-  });
 
   const domEventHandlers = EditorView.domEventHandlers({
     paste(event, view) {
@@ -325,7 +305,7 @@ export function createMarkdownEditor(
         codeLanguages: languages,
         addKeymap: true,
       }),
-      wikiAutocomplete,
+      createMarkdownAutocompleteExtension(callbacks.getWorkspaceFiles),
       domEventHandlers,
       vimCompartment.of(getVimExtension(settings.vimMode)),
       lineNumbersCompartment.of(getLineNumbersExtension(settings.lineNumbers)),
@@ -336,7 +316,7 @@ export function createMarkdownEditor(
       fontCompartment.of(getFontExtension(settings)),
       updateListener,
       EditorView.lineWrapping,
-      readOnly ? EditorState.readOnly.of(true) : [],
+      readOnlyCompartment.of(EditorState.readOnly.of(readOnly || mode === 'live')),
     ],
   });
 
@@ -356,7 +336,10 @@ export function createMarkdownEditor(
     },
     setMode(newMode: EditorMode) {
       view.dispatch({
-        effects: modeCompartment.reconfigure(getModeExtension(newMode)),
+        effects: [
+          modeCompartment.reconfigure(getModeExtension(newMode)),
+          readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly || newMode === 'live')),
+        ],
       });
     },
     applySettings(newSettings: AppSettings) {

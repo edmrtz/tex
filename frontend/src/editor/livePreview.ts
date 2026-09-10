@@ -105,6 +105,64 @@ class WikiLinkWidget extends WidgetType {
   }
 }
 
+class BulletWidget extends WidgetType {
+  eq(other: BulletWidget) {
+    return true;
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-bullet-point';
+    span.textContent = '•';
+    span.style.color = 'var(--accent, #38bdf8)';
+    span.style.fontWeight = 'bold';
+    span.style.display = 'inline-block';
+    span.style.marginRight = '0.5em';
+    span.style.textAlign = 'center';
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
+class CalloutHeaderWidget extends WidgetType {
+  constructor(readonly calloutType: string) {
+    super();
+  }
+
+  eq(other: CalloutHeaderWidget) {
+    return other.calloutType.toLowerCase() === this.calloutType.toLowerCase();
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    const type = this.calloutType.toLowerCase();
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    span.className = `cm-callout-badge cm-callout-badge-${type}`;
+    span.textContent = `[${label}]`;
+
+    const colors: Record<string, string> = {
+      note: 'var(--accent, #38bdf8)',
+      tip: '#4ade80',
+      important: '#a855f7',
+      warning: 'var(--dirty, #eab308)',
+      caution: 'var(--danger, #f43f5e)',
+    };
+    span.style.color = colors[type] || 'var(--accent, #38bdf8)';
+    span.style.fontWeight = '700';
+    span.style.fontFamily = 'var(--font-mono, monospace)';
+    span.style.marginRight = '6px';
+    span.style.display = 'inline-block';
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
 // Check if cursor or selection is strictly inside [from, to] (inclusive of boundaries)
 function cursorInside(state: EditorState, from: number, to: number): boolean {
   for (const range of state.selection.ranges) {
@@ -129,6 +187,12 @@ function computeDecorations(state: EditorState): DecorationSet {
   const docText = state.doc.toString();
   const ranges: Range<Decoration>[] = [];
   const occupiedReplacements: { from: number; to: number }[] = [];
+
+  const codeRanges: { from: number; to: number }[] = [];
+
+  function isInsideCode(from: number, to: number): boolean {
+    return codeRanges.some((r) => Math.max(from, r.from) < Math.min(to, r.to));
+  }
 
   function isOccupied(from: number, to: number): boolean {
     return occupiedReplacements.some(
@@ -181,6 +245,7 @@ function computeDecorations(state: EditorState): DecorationSet {
 
       // Fenced Code Blocks (```language ... ``` and ```mermaid ... ```)
       if (nodeName === 'FencedCode') {
+        codeRanges.push({ from: nodeFrom, to: nodeTo });
         let info = '';
         let code = '';
         const cursor = node.node.cursor();
@@ -260,34 +325,75 @@ function computeDecorations(state: EditorState): DecorationSet {
         ranges.push(Decoration.mark({ class: 'cm-codeblock-fence' }).range(nodeFrom, nodeTo));
       }
 
-      // Header styling (ATXHeading1 to ATXHeading6)
-      const headingMatch = nodeName.match(/^ATXHeading(\d)$/);
+      // Header styling (ATXHeading1 to ATXHeading6, SetextHeading1 to SetextHeading2)
+      const headingMatch = nodeName.match(/^(?:ATX|Setext)Heading(\d)$/);
       if (headingMatch) {
         const level = headingMatch[1];
-        const line = state.doc.lineAt(nodeFrom);
-        const lineText = state.doc.sliceString(line.from, line.to);
+        const startLine = state.doc.lineAt(nodeFrom);
+        const endLine = state.doc.lineAt(nodeTo);
+        const lineText = state.doc.sliceString(startLine.from, startLine.to);
 
-        // Do not style lines that only consist of hash marks without content or space
-        // (e.g. user backspaced to '#' or typed a single '#')
-        if (/^#{1,6}$/.test(lineText.trim())) {
-          return;
+        if (nodeName.startsWith('ATX')) {
+          // Do not style lines that only consist of hash marks without content or space
+          // (e.g. user backspaced to '#' or typed a single '#')
+          if (/^#{1,6}$/.test(lineText.trim())) {
+            return;
+          }
+
+          const hasCursor = cursorOnSameLine(state, startLine.from, startLine.to);
+
+          // Add styling to entire heading line
+          ranges.push(
+            Decoration.line({ class: `cm-heading cm-heading-${level}` }).range(startLine.from, startLine.from)
+          );
+
+          // Hide the '#' marks when cursor is elsewhere
+          if (!hasCursor) {
+            const hashPrefix = lineText.match(/^#{1,6}\s*/);
+            if (hashPrefix) {
+              addReplacement(
+                startLine.from,
+                startLine.from + hashPrefix[0].length,
+                Decoration.replace({})
+              );
+            }
+          }
+        } else {
+          // Setext heading
+          const hasCursor = cursorOnSameLine(state, startLine.from, endLine.to);
+
+          ranges.push(
+            Decoration.line({ class: `cm-heading cm-heading-${level}` }).range(startLine.from, startLine.from)
+          );
+
+          if (!hasCursor && endLine.number > startLine.number) {
+            addReplacement(endLine.from, endLine.to, Decoration.replace({}));
+          }
         }
+      }
 
-        const hasCursor = cursorOnSameLine(state, line.from, line.to);
+      // Bullet list items (- , * , + )
+      if (nodeName === 'ListMark') {
+        const parent = node.node.parent;
+        // Verify it is inside a BulletList and not an OrderedList
+        const isBullet = parent?.parent?.name === 'BulletList';
+        // Verify it is NOT a Task item (- [ ] / - [x])
+        const isTask = !!parent?.getChild('Task');
 
-        // Add styling to entire heading line
-        ranges.push(
-          Decoration.line({ class: `cm-heading cm-heading-${level}` }).range(line.from, line.from)
-        );
+        if (isBullet && !isTask) {
+          const line = state.doc.lineAt(nodeFrom);
+          const restOfLine = state.doc.sliceString(nodeTo, line.to);
+          const spaceMatch = restOfLine.match(/^\s+/);
+          const replaceTo = spaceMatch ? nodeTo + spaceMatch[0].length : nodeTo;
 
-        // Hide the '#' marks when cursor is elsewhere
-        if (!hasCursor) {
-          const hashPrefix = lineText.match(/^#{1,6}\s*/);
-          if (hashPrefix) {
+          const hasCursor = cursorInside(state, nodeFrom, replaceTo);
+          if (!hasCursor) {
             addReplacement(
-              line.from,
-              line.from + hashPrefix[0].length,
-              Decoration.replace({})
+              nodeFrom,
+              replaceTo,
+              Decoration.replace({
+                widget: new BulletWidget(),
+              })
             );
           }
         }
@@ -339,10 +445,53 @@ function computeDecorations(state: EditorState): DecorationSet {
         }
       }
 
-      // Blockquote line styling
+      // Blockquote & Callout line styling
       if (nodeName === 'Blockquote') {
-        const line = state.doc.lineAt(nodeFrom);
-        ranges.push(Decoration.line({ class: 'cm-blockquote-line' }).range(line.from, line.from));
+        const startLine = state.doc.lineAt(nodeFrom);
+        const endLine = state.doc.lineAt(nodeTo);
+        const firstLineText = startLine.text;
+
+        // Detect GitHub-style callouts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
+        const calloutMatch = firstLineText.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i);
+
+        if (calloutMatch) {
+          const calloutType = calloutMatch[1].toLowerCase();
+
+          // Apply line decoration to each line in the callout
+          for (let l = startLine.number; l <= endLine.number; l++) {
+            const line = state.doc.line(l);
+            ranges.push(
+              Decoration.line({
+                class: `cm-callout cm-callout-${calloutType}`,
+              }).range(line.from, line.from)
+            );
+          }
+
+          // Replace [!TYPE] marker outside cursor
+          const markerRegex = /(>\s*)(\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\])/i;
+          const markerMatch = firstLineText.match(markerRegex);
+          if (markerMatch && markerMatch.index !== undefined) {
+            const markerStart = startLine.from + markerMatch.index + markerMatch[1].length;
+            const markerEnd = markerStart + markerMatch[2].length;
+
+            const hasCursor = cursorInside(state, markerStart, markerEnd);
+            if (!hasCursor) {
+              addReplacement(
+                markerStart,
+                markerEnd,
+                Decoration.replace({
+                  widget: new CalloutHeaderWidget(calloutType),
+                })
+              );
+            }
+          }
+        } else {
+          // Regular blockquote styling for all lines
+          for (let l = startLine.number; l <= endLine.number; l++) {
+            const line = state.doc.line(l);
+            ranges.push(Decoration.line({ class: 'cm-blockquote-line' }).range(line.from, line.from));
+          }
+        }
       }
 
       // Task List Checkboxes
@@ -366,6 +515,7 @@ function computeDecorations(state: EditorState): DecorationSet {
 
       // Inline Code (`code`)
       if (nodeName === 'InlineCode') {
+        codeRanges.push({ from: nodeFrom, to: nodeTo });
         const hasCursor = cursorInside(state, nodeFrom, nodeTo);
         if (!hasCursor) {
           const raw = state.doc.sliceString(nodeFrom, nodeTo);
@@ -445,6 +595,79 @@ function computeDecorations(state: EditorState): DecorationSet {
     }
   }
 
+  // 6. Colored text spans: <span style="color: ...">text</span> and <font color="...">text</font>
+  const spanColorRegex = /<span\b[^>]*?\bstyle\s*=\s*["']([^"']*?color\s*:\s*([^;"']+)[^"']*?)["'][^>]*>([\s\S]+?)<\/span>/gi;
+  while ((match = spanColorRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const color = match[2].trim();
+    const openTagEnd = matchFrom + match[0].indexOf('>') + 1;
+    const closeTagStart = matchTo - 7;
+    const innerFrom = openTagEnd;
+    const innerTo = closeTagStart;
+
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, openTagEnd) || isOccupied(closeTagStart, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, openTagEnd, Decoration.replace({}));
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${color}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+      addReplacement(closeTagStart, matchTo, Decoration.replace({}));
+    }
+  }
+
+  const fontColorRegex = /<font\b[^>]*?\bcolor\s*=\s*["']([^"']+?)["'][^>]*>([\s\S]+?)<\/font>/gi;
+  while ((match = fontColorRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    const color = match[1].trim();
+    const openTagEnd = matchFrom + match[0].indexOf('>') + 1;
+    const closeTagStart = matchTo - 7;
+    const innerFrom = openTagEnd;
+    const innerTo = closeTagStart;
+
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, openTagEnd) || isOccupied(closeTagStart, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, openTagEnd, Decoration.replace({}));
+      if (innerFrom < innerTo) {
+        ranges.push(
+          Decoration.mark({
+            attributes: { style: `color: ${color}` },
+          }).range(innerFrom, innerTo)
+        );
+      }
+      addReplacement(closeTagStart, matchTo, Decoration.replace({}));
+    }
+  }
+
+  // 7. Markdown Highlight syntax: ==highlight==
+  const highlightRegex = /(?<![\\=])==(?!=)([^=\n]+?)(?<!=)==(?!=)/g;
+  while ((match = highlightRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, matchFrom + 2) || isOccupied(matchTo - 2, matchTo)) continue;
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(matchFrom, matchFrom + 2, Decoration.replace({}));
+      ranges.push(Decoration.mark({ class: 'cm-text-highlight' }).range(matchFrom + 2, matchTo - 2));
+      addReplacement(matchTo - 2, matchTo, Decoration.replace({}));
+    } else {
+      ranges.push(Decoration.mark({ class: 'cm-text-highlight' }).range(matchFrom, matchTo));
+    }
+  }
+
   return RangeSet.of(ranges, true);
 }
 
@@ -461,6 +684,69 @@ export const livePreviewField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+export const livePreviewTheme = EditorView.baseTheme({
+  '.cm-bullet-point': {
+    color: 'var(--accent, #38bdf8)',
+    fontWeight: 'bold',
+    display: 'inline-block',
+    marginRight: '0.5em',
+    textAlign: 'center',
+  },
+  '.cm-callout': {
+    paddingLeft: '14px',
+    margin: '4px 0',
+  },
+  '.cm-callout-note': {
+    borderLeft: '3px solid var(--accent, #38bdf8) !important',
+    backgroundColor: 'rgba(56, 189, 248, 0.06)',
+  },
+  '.cm-callout-tip': {
+    borderLeft: '3px solid #4ade80 !important',
+    backgroundColor: 'rgba(74, 222, 128, 0.06)',
+  },
+  '.cm-callout-important': {
+    borderLeft: '3px solid #a855f7 !important',
+    backgroundColor: 'rgba(168, 85, 247, 0.06)',
+  },
+  '.cm-callout-warning': {
+    borderLeft: '3px solid var(--dirty, #eab308) !important',
+    backgroundColor: 'rgba(234, 179, 8, 0.06)',
+  },
+  '.cm-callout-caution': {
+    borderLeft: '3px solid var(--danger, #f43f5e) !important',
+    backgroundColor: 'rgba(244, 63, 94, 0.06)',
+  },
+  '.cm-callout-badge': {
+    fontFamily: 'var(--font-mono, monospace)',
+    fontWeight: '700',
+    fontSize: '0.9em',
+    marginRight: '6px',
+    display: 'inline-block',
+  },
+  '.cm-callout-badge-note': {
+    color: 'var(--accent, #38bdf8)',
+  },
+  '.cm-callout-badge-tip': {
+    color: '#4ade80',
+  },
+  '.cm-callout-badge-important': {
+    color: '#a855f7',
+  },
+  '.cm-callout-badge-warning': {
+    color: 'var(--dirty, #eab308)',
+  },
+  '.cm-callout-badge-caution': {
+    color: 'var(--danger, #f43f5e)',
+  },
+  '.cm-text-highlight': {
+    backgroundColor: 'rgba(234, 179, 8, 0.3)',
+    color: 'inherit',
+    padding: '1px 4px',
+    borderRadius: '0px',
+    borderBottom: '1px solid rgba(234, 179, 8, 0.6)',
+  },
+});
+
 export function createLivePreviewPlugin(): Extension {
-  return [livePreviewField];
+  return [livePreviewField, livePreviewTheme];
 }
