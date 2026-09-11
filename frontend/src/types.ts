@@ -55,8 +55,8 @@ export interface CursorPosition {
 
 export interface AppSettings {
   theme: 'dark' | 'light';
-  uiFont: 'system' | 'inter' | 'serif';
-  monoFont: 'default' | 'jetbrains' | 'fira' | 'consolas';
+  systemFont: string;
+  editorFont: string;
   fontSize: number;
   editorWidth: 'full' | 'wide' | 'centered';
   keybinds?: Record<string, string>;

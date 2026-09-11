@@ -14,7 +14,6 @@
     ChevronDown,
     ChevronRight,
     X,
-    Replace as ReplaceIcon,
   } from '@lucide/svelte';
 
   let {
@@ -186,7 +185,7 @@
         onclick={() => { showReplace = !showReplace; }}
         type="button"
       >
-        <ChevronRight size={13} class={showReplace ? 'rotate-down' : ''} />
+        <ChevronRight size={13} strokeWidth={1.5} class={showReplace ? 'rotate-down' : ''} />
       </button>
 
       <div class="input-wrapper">
@@ -230,7 +229,7 @@
           disabled={matchStats.total === 0}
           type="button"
         >
-          <ChevronUp size={14} />
+          <ChevronUp size={14} strokeWidth={1.5} />
         </button>
         <button
           class="btn-icon"
@@ -239,7 +238,7 @@
           disabled={matchStats.total === 0}
           type="button"
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={14} strokeWidth={1.5} />
         </button>
         <button
           class="btn-icon btn-close"
@@ -250,7 +249,7 @@
           }}
           type="button"
         >
-          <X size={14} />
+          <X size={14} strokeWidth={1.5} />
         </button>
       </div>
     </div>

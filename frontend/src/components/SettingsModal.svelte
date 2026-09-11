@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AppSettings } from '../types';
   import { X, RotateCcw } from '@lucide/svelte';
+  import { GetSystemFonts } from '../../wailsjs/go/main/App';
 
   let {
     isOpen,
@@ -17,12 +18,38 @@
   let activeTab = $state<'editor' | 'keybinds'>('editor');
   let draft = $state<AppSettings>({ ...settings });
   let recordingKey = $state<string | null>(null);
+  let systemFonts = $state<string[]>([]);
 
   $effect(() => {
     if (isOpen) {
       draft = { ...settings };
       recordingKey = null;
+      if (systemFonts.length === 0) {
+        GetSystemFonts()
+          .then((fonts) => {
+            if (fonts && fonts.length > 0) {
+              systemFonts = fonts;
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load system fonts:', err);
+          });
+      }
     }
+  });
+
+  const availableSystemFonts = $derived.by(() => {
+    const set = new Set(systemFonts);
+    set.add('System UI');
+    if (draft.systemFont) set.add(draft.systemFont);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  });
+
+  const availableEditorFonts = $derived.by(() => {
+    const set = new Set(systemFonts);
+    set.add('DM Mono');
+    if (draft.editorFont) set.add(draft.editorFont);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   });
 
   function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
@@ -130,7 +157,7 @@
           <span class="tui-label">Preferences</span>
         </div>
         <button class="tui-btn-close" onclick={onClose} type="button" title="Close (Esc)">
-          <X size={14} />
+          <X size={14} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -183,85 +210,41 @@
             </div>
           </div>
 
-          <!-- Section: Editor Typography -->
+          <!-- Section: System UI Font -->
           <div class="settings-group">
             <div class="group-header">
-              <span class="group-name">Editor Typography</span>
-              <span class="scope-hint">Markdown editor only</span>
+              <span class="group-name">System UI Font</span>
+              <span class="scope-hint">Sidebar, top bar, file title, tags, modals</span>
             </div>
-            <div class="tui-btn-group">
-              <button
-                class="tui-option-btn"
-                class:selected={draft.uiFont === 'system'}
-                onclick={() => update('uiFont', 'system')}
-                type="button"
+            <div class="tui-select-wrapper">
+              <select
+                class="tui-select"
+                value={draft.systemFont}
+                onchange={(e) => update('systemFont', e.currentTarget.value)}
               >
-                <span class="indicator">{draft.uiFont === 'system' ? '[x]' : '[ ]'}</span>
-                <span>System UI</span>
-              </button>
-              <button
-                class="tui-option-btn"
-                class:selected={draft.uiFont === 'inter'}
-                onclick={() => update('uiFont', 'inter')}
-                type="button"
-              >
-                <span class="indicator">{draft.uiFont === 'inter' ? '[x]' : '[ ]'}</span>
-                <span>Inter</span>
-              </button>
-              <button
-                class="tui-option-btn"
-                class:selected={draft.uiFont === 'serif'}
-                onclick={() => update('uiFont', 'serif')}
-                type="button"
-              >
-                <span class="indicator">{draft.uiFont === 'serif' ? '[x]' : '[ ]'}</span>
-                <span>Serif</span>
-              </button>
+                {#each availableSystemFonts as font}
+                  <option value={font}>{font}</option>
+                {/each}
+              </select>
             </div>
           </div>
 
-          <!-- Section: Code Font -->
+          <!-- Section: Editor UI Font -->
           <div class="settings-group">
             <div class="group-header">
-              <span class="group-name">Code / Monospace Font</span>
+              <span class="group-name">Editor UI Font</span>
+              <span class="scope-hint">Markdown editor (raw mode)</span>
             </div>
-            <div class="tui-btn-grid">
-              <button
-                class="tui-option-btn"
-                class:selected={draft.monoFont === 'default'}
-                onclick={() => update('monoFont', 'default')}
-                type="button"
+            <div class="tui-select-wrapper">
+              <select
+                class="tui-select"
+                value={draft.editorFont}
+                onchange={(e) => update('editorFont', e.currentTarget.value)}
               >
-                <span class="indicator">{draft.monoFont === 'default' ? '[x]' : '[ ]'}</span>
-                <span>DM Mono</span>
-              </button>
-              <button
-                class="tui-option-btn"
-                class:selected={draft.monoFont === 'jetbrains'}
-                onclick={() => update('monoFont', 'jetbrains')}
-                type="button"
-              >
-                <span class="indicator">{draft.monoFont === 'jetbrains' ? '[x]' : '[ ]'}</span>
-                <span>JetBrains Mono</span>
-              </button>
-              <button
-                class="tui-option-btn"
-                class:selected={draft.monoFont === 'fira'}
-                onclick={() => update('monoFont', 'fira')}
-                type="button"
-              >
-                <span class="indicator">{draft.monoFont === 'fira' ? '[x]' : '[ ]'}</span>
-                <span>Fira Code</span>
-              </button>
-              <button
-                class="tui-option-btn"
-                class:selected={draft.monoFont === 'consolas'}
-                onclick={() => update('monoFont', 'consolas')}
-                type="button"
-              >
-                <span class="indicator">{draft.monoFont === 'consolas' ? '[x]' : '[ ]'}</span>
-                <span>Consolas</span>
-              </button>
+                {#each availableEditorFonts as font}
+                  <option value={font}>{font}</option>
+                {/each}
+              </select>
             </div>
           </div>
 
@@ -339,7 +322,7 @@
             <div class="keybinds-header">
               <span class="group-name">Custom Keybindings</span>
               <button class="tui-reset-btn" onclick={resetAllKeybinds} type="button" title="Reset all shortcuts to defaults">
-                <RotateCcw size={11} />
+                <RotateCcw size={11} strokeWidth={1.5} />
                 <span>Reset Defaults</span>
               </button>
             </div>
@@ -543,10 +526,31 @@
     gap: 6px;
   }
 
-  .tui-btn-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+  .tui-select-wrapper {
+    width: 100%;
+  }
+
+  .tui-select {
+    width: 100%;
+    background-color: var(--bg-app);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 0px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.12s ease;
+  }
+
+  .tui-select:focus {
+    border-color: var(--accent);
+  }
+
+  .tui-select option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
   }
 
   .tui-option-btn {

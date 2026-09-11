@@ -30,7 +30,7 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.7.2",
-    "@lucide/svelte": "^1.40.0",
+    "@lucide/svelte": "^1.45.0",
     "katex": "^0.18.5",
     "mermaid": "^12.0.0"
   }

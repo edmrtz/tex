@@ -12,6 +12,8 @@ export function ExportHTML(arg1:string,arg2:string):Promise<string>;
 
 export function GetInitialFiles():Promise<Array<string>>;
 
+export function GetSystemFonts():Promise<Array<string>>;
+
 export function GetWorkspaceInfo():Promise<main.WorkspaceInfo>;
 
 export function IsDirectory(arg1:string):Promise<boolean>;

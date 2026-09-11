@@ -10,7 +10,7 @@
     RecentItem,
   } from './types';
   import { createMarkdownEditor } from './editor/editor';
-  import { getUiFontFamily, getMonoFontFamily } from './editor/theme';
+  import { formatFontFamily } from './editor/theme';
   import Sidebar from './components/Sidebar.svelte';
   import TagBar from './components/TagBar.svelte';
   import FindReplace from './components/FindReplace.svelte';
@@ -62,8 +62,8 @@
 
   const defaultSettings: AppSettings = {
     theme: 'dark',
-    uiFont: 'system',
-    monoFont: 'default',
+    systemFont: 'System UI',
+    editorFont: 'DM Mono',
     fontSize: 15,
     editorWidth: 'full',
   };
@@ -71,7 +71,15 @@
   function loadSettings(): AppSettings {
     try {
       const raw = localStorage.getItem('tex:settings');
-      if (raw) return { ...defaultSettings, ...JSON.parse(raw) };
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          ...defaultSettings,
+          ...parsed,
+          systemFont: parsed.systemFont || (parsed.uiFont === 'inter' ? 'Inter' : 'System UI'),
+          editorFont: parsed.editorFont || (parsed.monoFont === 'jetbrains' ? 'JetBrains Mono' : parsed.monoFont === 'fira' ? 'Fira Code' : parsed.monoFont === 'consolas' ? 'Consolas' : 'DM Mono'),
+        };
+      }
     } catch {}
     return defaultSettings;
   }
@@ -270,6 +278,17 @@
     }
   }
 
+  function focusEditor() {
+    requestAnimationFrame(() => {
+      editorInstance?.focus();
+      setTimeout(() => {
+        if (editorInstance && !editorInstance.view.hasFocus) {
+          editorInstance.focus();
+        }
+      }, 50);
+    });
+  }
+
   function applyAppSettings(newSettings: AppSettings) {
     settings = newSettings;
     try {
@@ -277,12 +296,13 @@
     } catch {}
 
     document.documentElement.setAttribute('data-theme', newSettings.theme);
-    document.documentElement.style.removeProperty('--font-ui');
-    document.documentElement.style.removeProperty('--font-mono');
-    document.documentElement.style.removeProperty('--text-heading');
-    document.documentElement.style.removeProperty('--text-main');
+    
+    // System UI font governs everything outside the markdown editor
+    const systemFontFam = formatFontFamily(newSettings.systemFont, 'ui');
+    document.documentElement.style.setProperty('--font-ui', systemFontFam);
+    document.documentElement.style.setProperty('--font-mono', systemFontFam);
 
-    // Typography and width apply directly to markdown editor
+    // Markdown editor typography
     if (editorInstance) {
       editorInstance.applySettings(newSettings);
     }
@@ -336,10 +356,9 @@
 
   let activeNote = $derived(notes.find((n) => n.id === activeNoteId) || null);
 
-  // Synchronize OS Window Title with active file & dirty status
+  // Synchronize OS Window Title
   $effect(() => {
-    const dirtyMark = activeNote?.isDirty ? '● ' : '';
-    WindowSetTitle(`${dirtyMark}tex.md`);
+    WindowSetTitle('tex.md');
   });
 
   function cleanPreview(content: string): string {
@@ -373,7 +392,10 @@
   }
 
   function switchNote(id: string) {
-    if (activeNoteId === id) return;
+    if (activeNoteId === id) {
+      focusEditor();
+      return;
+    }
     activeNoteId = id;
     const note = notes.find((n) => n.id === id);
     if (note) {
@@ -381,7 +403,7 @@
         isProgrammaticUpdate = true;
         editorInstance.setContent(note.content);
         isProgrammaticUpdate = false;
-        editorInstance.focus();
+        focusEditor();
       }
       recordRecentItem(note.title, note.path, note.content);
     }
@@ -561,6 +583,7 @@
     const existing = notes.find((n) => n.path === filePath);
     if (existing) {
       switchNote(existing.id);
+      focusEditor();
       return;
     }
 
@@ -584,10 +607,12 @@
           isProgrammaticUpdate = true;
           editorInstance.setContent(file.content);
           isProgrammaticUpdate = false;
+          focusEditor();
         }
         recordRecentItem(file.name, file.path, file.content);
       } else {
         addNote(file.name, file.content, file.path, file.modTime);
+        focusEditor();
       }
     } catch (err) {
       console.error('Error reading file:', err);
@@ -729,8 +754,7 @@
           notes = [...notes];
           recordRecentItem(res.name, res.path, targetNote.content);
           if (activeNoteId === targetNote.id) {
-            const dirtyMark = targetNote.isDirty ? '● ' : '';
-            WindowSetTitle(`${dirtyMark}tex.md`);
+            WindowSetTitle('tex.md');
           }
           await handleRefreshFolder();
           persistCurrentSession();
@@ -1163,9 +1187,6 @@
   <div class="tui-window-titlebar" style="--wails-draggable: drag;">
     <div class="titlebar-left">
       <span class="tui-brand">tex.md</span>
-      {#if activeNote?.isDirty}
-        <span class="tui-dirty-dot">●</span>
-      {/if}
     </div>
 
     <div class="titlebar-controls" style="--wails-draggable: no-drag;">
@@ -1230,9 +1251,9 @@
             type="button"
           >
             {#if sidebarOpen}
-              <PanelLeftClose size={15} />
+              <PanelLeftClose size={14} strokeWidth={1.5} />
             {:else}
-              <PanelLeft size={15} />
+              <PanelLeft size={14} strokeWidth={1.5} />
             {/if}
           </button>
         </div>
@@ -1243,7 +1264,7 @@
             {(activeNote?.title || 'Untitled').replace(/\.md$/i, '')}
           </span>
           {#if activeNote?.isDirty}
-            <span class="document-tab-dirty" title="Unsaved changes">●</span>
+            <span class="document-tab-dirty" title="Unsaved changes"></span>
           {/if}
         </div>
 
@@ -1254,7 +1275,7 @@
             onclick={handleSave}
             type="button"
           >
-            <Save size={13} />
+            <Save size={13} strokeWidth={1.5} />
             <span>Save</span>
           </button>
 
@@ -1265,10 +1286,10 @@
             type="button"
           >
             {#if editorMode === 'live'}
-              <Eye size={13} />
+              <Eye size={13} strokeWidth={1.5} />
               <span>Live</span>
             {:else}
-              <Code size={13} />
+              <Code size={13} strokeWidth={1.5} />
               <span>Raw</span>
             {/if}
           </button>
@@ -1302,7 +1323,13 @@
   <QuickSwitcher
     bind:isOpen={showQuickSwitcher}
     files={getAllWorkspaceFiles()}
-    onSelectFile={(f) => openFilePath(f)}
+    onSelectFile={async (f) => {
+      await openFilePath(f);
+      focusEditor();
+    }}
+    onClose={() => {
+      focusEditor();
+    }}
   />
 
   <!-- Preferences / Settings Modal -->
@@ -1511,10 +1538,25 @@
     text-overflow: ellipsis;
   }
 
+  @keyframes dotAppear {
+    from {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
   .document-tab-dirty {
-    color: var(--dirty);
-    font-size: 9px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--dirty);
+    display: inline-block;
     flex-shrink: 0;
+    animation: dotAppear 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .header-right {

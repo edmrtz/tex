@@ -170,7 +170,7 @@
 
 <div class="tag-bar" role="toolbar" aria-label="Document tags">
   <div class="tag-bar-header">
-    <Tag size={13} class="tag-header-icon" />
+    <Tag size={13} strokeWidth={1.5} class="tag-header-icon" />
     <span class="tag-header-label">Tags</span>
   </div>
 
@@ -200,7 +200,7 @@
           title="Remove #{cleanDisplayTag(tag)}"
           aria-label="Remove #{cleanDisplayTag(tag)}"
         >
-          <X size={11} />
+          <X size={11} strokeWidth={1.5} />
         </button>
       </div>
     {/each}
@@ -253,7 +253,7 @@
         onclick={startAdding}
         title="Add tag"
       >
-        <Plus size={11} />
+        <Plus size={11} strokeWidth={1.5} />
         <span>Add Tag</span>
       </button>
     {/if}

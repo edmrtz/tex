@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -808,5 +809,65 @@ func (a *App) runFileWatcher() {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
+}
+
+// GetSystemFonts returns a list of installed font family names on the operating system
+func (a *App) GetSystemFonts() []string {
+	fontSet := make(map[string]bool)
+
+	// Linux / Unix: execute fc-list to query fontconfig
+	if out, err := exec.Command("fc-list", ":", "family").Output(); err == nil {
+		lines := strings.Split(string(out), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			for _, name := range strings.Split(line, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" && !strings.HasPrefix(name, ".") {
+					fontSet[name] = true
+				}
+			}
+		}
+	}
+
+	// Standard font families as fallbacks
+	standardFonts := []string{
+		"System UI",
+		"Inter",
+		"Roboto",
+		"Segoe UI",
+		"SF Pro Display",
+		"Ubuntu",
+		"Cantarell",
+		"Helvetica Neue",
+		"Arial",
+		"Fira Code",
+		"JetBrains Mono",
+		"Cascadia Code",
+		"Consolas",
+		"DM Mono",
+		"Courier New",
+		"Menlo",
+		"Monaco",
+		"Source Code Pro",
+		"DejaVu Sans",
+		"DejaVu Sans Mono",
+		"Liberation Sans",
+		"Liberation Mono",
+		"Georgia",
+		"Times New Roman",
+	}
+	for _, f := range standardFonts {
+		fontSet[f] = true
+	}
+
+	result := make([]string, 0, len(fontSet))
+	for name := range fontSet {
+		result = append(result, name)
+	}
+	sort.Strings(result)
+	return result
 }
 

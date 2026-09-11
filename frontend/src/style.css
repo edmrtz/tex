@@ -405,15 +405,15 @@ html, body {
   background-color: var(--accent-hover);
 }
 
-/* Dirty Dot Subtle Pulse Animation */
-@keyframes dirtyPulse {
-  0%, 100% {
+/* Dirty Dot Entrance Animation */
+@keyframes dotAppear {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  100% {
     transform: scale(1);
     opacity: 1;
-  }
-  50% {
-    transform: scale(1.25);
-    opacity: 0.8;
   }
 }
 
@@ -421,7 +421,12 @@ html, body {
 .dirty-badge,
 .document-tab-dirty {
   display: inline-block;
-  animation: dirtyPulse 2.4s ease-in-out infinite;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--dirty);
+  flex-shrink: 0;
+  animation: dotAppear 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* CodeMirror Cursor Layer & Smooth Blinking Keyframes */

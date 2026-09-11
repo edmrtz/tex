@@ -86,7 +86,7 @@ export function createMarkdownEditor(
   }
 
   function getFontExtension(s: AppSettings): Extension {
-    return createFontTheme(s.fontSize, s.uiFont, s.monoFont);
+    return createFontTheme(s.fontSize, s.editorFont);
   }
 
   function getWidthExtension(w: 'full' | 'wide' | 'centered' = 'full'): Extension {
@@ -362,6 +362,13 @@ export function createMarkdownEditor(
     },
     focus() {
       view.focus();
+      if (!view.hasFocus) {
+        view.contentDOM?.focus();
+      }
+      view.dispatch({
+        selection: view.state.selection,
+        scrollIntoView: true,
+      });
     },
     insertTextAtCursor(text: string) {
       const { main } = view.state.selection;

@@ -2,43 +2,31 @@ import { EditorView } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
-export function getUiFontFamily(fontKey: string): string {
-  switch (fontKey) {
-    case 'inter':
-      return '"Inter", system-ui, -apple-system, sans-serif';
-    case 'serif':
-      return '"Georgia", Cambria, "Times New Roman", serif';
-    case 'system':
-    default:
-      return "'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace";
+export function formatFontFamily(fontName: string, fallback: 'ui' | 'mono' = 'ui'): string {
+  if (!fontName || fontName === 'default' || fontName === 'System UI') {
+    return fallback === 'mono'
+      ? "'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace"
+      : "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
   }
+  const fallbackList = fallback === 'mono'
+    ? "'DM Mono', 'JetBrains Mono', ui-monospace, monospace"
+    : "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  return `"${fontName}", ${fallbackList}`;
 }
 
-export function getMonoFontFamily(fontKey: string): string {
-  switch (fontKey) {
-    case 'jetbrains':
-      return '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-    case 'fira':
-      return '"Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace';
-    case 'consolas':
-      return '"Consolas", "Courier New", monospace';
-    case 'default':
-    default:
-      return "'DM Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace";
-  }
-}
-
-export function createFontTheme(fontSizePx: number, uiFontKey: string, monoFontKey: string) {
-  const uiFont = getUiFontFamily(uiFontKey);
-  const monoFont = getMonoFontFamily(monoFontKey);
+export function createFontTheme(fontSizePx: number, editorFontName: string = 'DM Mono') {
+  const fontFam = formatFontFamily(editorFontName, 'mono');
   return EditorView.theme({
     '&': {
       fontSize: `${fontSizePx}px`,
-      fontFamily: uiFont,
+      fontFamily: fontFam,
       letterSpacing: '-0.02ch',
     },
+    '.cm-content': {
+      fontFamily: fontFam,
+    },
     '.cm-codeblock-line, .cm-inline-code, .cm-codeblock-header-line': {
-      fontFamily: monoFont,
+      fontFamily: fontFam,
     },
   });
 }
@@ -195,6 +183,7 @@ export const editorThemeDark = EditorView.theme({
   // Headings with distinctive hierarchical colors
   '.cm-heading': {
     fontWeight: '700',
+    color: '#ffffff !important',
   },
   '.cm-heading-1': {
     fontSize: '1.8em',
@@ -202,7 +191,7 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     marginBottom: '0.5em',
-    color: '#38bdf8 !important',
+    color: '#ffffff !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -210,25 +199,25 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
     marginTop: '0.75em',
-    color: '#818cf8 !important',
+    color: '#ffffff !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: '#c084fc !important',
+    color: '#ffffff !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: '#34d399 !important',
+    color: '#ffffff !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: '#fbbf24 !important',
+    color: '#ffffff !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: '#f472b6 !important',
+    color: '#ffffff !important',
     textTransform: 'uppercase',
   },
   // Inline typography
@@ -607,6 +596,7 @@ export const editorThemeLight = EditorView.theme({
   // Headings with distinctive hierarchical colors (Light theme)
   '.cm-heading': {
     fontWeight: '700',
+    color: '#09090b !important',
   },
   '.cm-heading-1': {
     fontSize: '1.8em',
@@ -614,7 +604,7 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
     marginBottom: '0.5em',
-    color: '#0284c7 !important',
+    color: '#09090b !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -622,25 +612,25 @@ export const editorThemeLight = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(0, 0, 0, 0.07))',
     marginTop: '0.75em',
-    color: '#4f46e5 !important',
+    color: '#09090b !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: '#7c3aed !important',
+    color: '#09090b !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: '#059669 !important',
+    color: '#09090b !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: '#d97706 !important',
+    color: '#09090b !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: '#db2777 !important',
+    color: '#09090b !important',
     textTransform: 'uppercase',
   },
   // Inline typography
@@ -928,14 +918,8 @@ export const markdownHighlightStyleDark = HighlightStyle.define([
   // Comments and metadata
   { tag: [t.meta, t.annotation, t.modifier], color: '#a78bfa' }, // lavender
   { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: '#71717a', fontStyle: 'italic' }, // zinc-500
-  // Markdown headings with distinctive colors
-  { tag: t.heading1, color: '#38bdf8', fontWeight: '700' }, // Sky
-  { tag: t.heading2, color: '#818cf8', fontWeight: '700' }, // Indigo
-  { tag: t.heading3, color: '#c084fc', fontWeight: '600' }, // Violet
-  { tag: t.heading4, color: '#34d399', fontWeight: '600' }, // Emerald
-  { tag: t.heading5, color: '#fbbf24', fontWeight: '600' }, // Amber
-  { tag: t.heading6, color: '#f472b6', fontWeight: '600' }, // Rose
-  { tag: t.heading, color: '#ffffff', fontWeight: 'bold' },
+  // Markdown headings without rainbow colors
+  { tag: [t.heading, t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6], color: '#ffffff', fontWeight: '700' },
   // Markdown formatting
   { tag: t.strong, fontWeight: 'bold', color: '#ffffff' },
   { tag: t.emphasis, fontStyle: 'italic', color: '#e4e4e7' },
@@ -973,14 +957,8 @@ export const markdownHighlightStyleLight = HighlightStyle.define([
   // Comments and metadata
   { tag: [t.meta, t.annotation, t.modifier], color: '#7c3aed' }, // purple-600
   { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: '#64748b', fontStyle: 'italic' }, // slate-500
-  // Markdown headings with distinctive colors
-  { tag: t.heading1, color: '#0284c7', fontWeight: '700' }, // Sky
-  { tag: t.heading2, color: '#4f46e5', fontWeight: '700' }, // Indigo
-  { tag: t.heading3, color: '#7c3aed', fontWeight: '600' }, // Violet
-  { tag: t.heading4, color: '#059669', fontWeight: '600' }, // Emerald
-  { tag: t.heading5, color: '#d97706', fontWeight: '600' }, // Amber
-  { tag: t.heading6, color: '#db2777', fontWeight: '600' }, // Rose
-  { tag: t.heading, color: '#09090b', fontWeight: 'bold' },
+  // Markdown headings without rainbow colors
+  { tag: [t.heading, t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6], color: '#09090b', fontWeight: '700' },
   // Markdown formatting
   { tag: t.strong, fontWeight: 'bold', color: '#000000' },
   { tag: t.emphasis, fontStyle: 'italic', color: '#18181b' },

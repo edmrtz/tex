@@ -22,6 +22,10 @@ export function GetInitialFiles() {
   return window['go']['main']['App']['GetInitialFiles']();
 }
 
+export function GetSystemFonts() {
+  return window['go']['main']['App']['GetSystemFonts']();
+}
+
 export function GetWorkspaceInfo() {
   return window['go']['main']['App']['GetWorkspaceInfo']();
 }

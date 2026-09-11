@@ -6,10 +6,12 @@
     isOpen = $bindable(false),
     files = [],
     onSelectFile,
+    onClose,
   }: {
     isOpen: boolean;
     files: string[];
     onSelectFile: (filePath: string) => void;
+    onClose?: () => void;
   } = $props();
 
   let query = $state('');
@@ -83,6 +85,12 @@
       });
   });
 
+  function close() {
+    inputEl?.blur();
+    isOpen = false;
+    onClose?.();
+  }
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -94,11 +102,11 @@
       e.preventDefault();
       if (filteredFiles[selectedIndex]) {
         onSelectFile(filteredFiles[selectedIndex]);
-        isOpen = false;
+        close();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      isOpen = false;
+      close();
     }
   }
 
@@ -120,7 +128,7 @@
     role="dialog"
     aria-modal="true"
     tabindex="-1"
-    onclick={() => { isOpen = false; }}
+    onclick={close}
     onkeydown={handleKeyDown}
   >
     <div
@@ -134,7 +142,7 @@
         <!-- Left: Search and File Results -->
         <div class="switcher-list-pane">
           <div class="search-box">
-            <Search size={14} class="search-icon" />
+            <Search size={14} strokeWidth={1.5} class="search-icon" />
             <input
               bind:this={inputEl}
               type="text"
@@ -156,11 +164,10 @@
                   class:selected={index === selectedIndex}
                   onclick={() => {
                     onSelectFile(file);
-                    isOpen = false;
+                    close();
                   }}
-                  onmouseenter={() => { selectedIndex = index; }}
                 >
-                  <FileText size={14} class="result-icon" />
+                  <FileText size={14} strokeWidth={1.5} class="result-icon" />
                   <div class="result-text">
                     <span class="file-title">{getBaseName(file)}</span>
                     {#if getDirName(file)}

@@ -12,8 +12,8 @@
     X,
     PanelLeftClose,
     Settings as SettingsIcon,
-    Trash2,
-    Edit2,
+    Trash as Trash2,
+    Pencil as Edit2,
     Download,
     FileUp,
     ChevronRight,
@@ -1044,12 +1044,13 @@
     padding: 4px 6px;
     cursor: pointer;
     border-radius: 3px;
-    transition: background-color 0.12s ease;
+    transition: none;
     user-select: none;
   }
 
   .section-header:hover {
     background-color: var(--bg-hover);
+    transition: none;
   }
 
   .section-header-left {
@@ -1098,12 +1099,13 @@
     border-radius: 3px;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background-color 0.1s ease, color 0.1s ease;
+    transition: none;
   }
 
   .section-action-btn:hover {
     background-color: var(--bg-hover);
     color: var(--text-bright);
+    transition: none;
   }
 
   .section-body {
@@ -1183,13 +1185,14 @@
     cursor: pointer;
     color: var(--text-main);
     font-size: 11px;
-    transition: background-color 0.1s ease, color 0.1s ease;
+    transition: none;
     position: relative;
   }
 
   .tree-item:hover {
     background-color: var(--bg-hover);
     color: var(--text-bright);
+    transition: none;
   }
 
   .tree-item.active {
@@ -1239,14 +1242,19 @@
   }
 
   .tree-actions {
-    display: none;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
     align-items: center;
     gap: 2px;
     margin-left: auto;
+    transition: none;
   }
 
   .tree-item:hover .tree-actions {
-    display: flex;
+    opacity: 1;
+    pointer-events: auto;
+    transition: none;
   }
 
   .tree-action-btn {
@@ -1261,11 +1269,13 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 0;
+    transition: none;
   }
 
   .tree-action-btn:hover {
     background-color: var(--bg-active);
     color: var(--text-bright);
+    transition: none;
   }
 
   .tree-empty {

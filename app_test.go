@@ -163,3 +163,23 @@ func TestCLIFolderSupport(t *testing.T) {
 		t.Errorf("Expected ws2.InitialFiles to be empty, got %v", ws2.InitialFiles)
 	}
 }
+
+func TestGetSystemFonts(t *testing.T) {
+	app := NewApp(nil)
+	fonts := app.GetSystemFonts()
+	if len(fonts) == 0 {
+		t.Fatalf("Expected non-empty list of system fonts")
+	}
+
+	hasSystemUI := false
+	for _, f := range fonts {
+		if f == "System UI" {
+			hasSystemUI = true
+			break
+		}
+	}
+	if !hasSystemUI {
+		t.Errorf("Expected fonts to include 'System UI'")
+	}
+}
+
