@@ -9,8 +9,6 @@ export interface NoteDocument {
   tags?: string[];
 }
 
-// Backward compatibility alias for Tab
-export type Tab = NoteDocument;
 
 export interface FileTreeItem {
   path: string;

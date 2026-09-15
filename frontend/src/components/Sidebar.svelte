@@ -24,11 +24,9 @@
   let {
     isOpen,
     activeId,
-    recentItems = [],
     folders = [],
     activeTagFilter = $bindable(null),
     onSelectNote,
-    onCloseNote,
     onNewNote,
     onOpenFile,
     onOpenFolder,
@@ -38,23 +36,19 @@
     onCreateFileInFolder,
     onCreateSubfolder,
     onSelectTagFilter,
-    onAddTagToNote,
     onToggleSidebar,
     onFind,
     onExport,
     onOpenSettings,
     onRenameFile,
     onDeleteFile,
-    onReorderNotes,
     onDropExternalFiles,
   }: {
     isOpen: boolean;
     activeId: string;
-    recentItems: RecentItem[];
     folders?: SidebarFolder[];
     activeTagFilter?: string | null;
     onSelectNote: (item: RecentItem) => void;
-    onCloseNote?: (item: RecentItem, e: MouseEvent) => void;
     onNewNote: (folderPath?: string) => void;
     onOpenFile: () => void;
     onOpenFolder?: () => void;
@@ -64,14 +58,12 @@
     onCreateFileInFolder?: (folderPath: string, fileName: string) => void;
     onCreateSubfolder?: (parentPath: string, folderName: string) => void;
     onSelectTagFilter?: (tag: string | null) => void;
-    onAddTagToNote?: (item: RecentItem, tag: string) => void;
     onToggleSidebar: () => void;
     onFind: () => void;
     onExport: () => void;
     onOpenSettings: () => void;
     onRenameFile?: (oldPathOrId: string, newName: string) => void;
     onDeleteFile?: (filePathOrId: string) => void;
-    onReorderNotes?: (items: RecentItem[]) => void;
     onDropExternalFiles?: (filePaths: string[]) => void;
   } = $props();
 

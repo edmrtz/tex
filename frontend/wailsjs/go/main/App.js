@@ -50,10 +50,6 @@ export function OpenFileDialog() {
   return window['go']['main']['App']['OpenFileDialog']();
 }
 
-export function PrintDocument() {
-  return window['go']['main']['App']['PrintDocument']();
-}
-
 export function ReadDirectoryTree(arg1, arg2) {
   return window['go']['main']['App']['ReadDirectoryTree'](arg1, arg2);
 }

@@ -71,15 +71,7 @@
   function loadSettings(): AppSettings {
     try {
       const raw = localStorage.getItem('tex:settings');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return {
-          ...defaultSettings,
-          ...parsed,
-          systemFont: parsed.systemFont || (parsed.uiFont === 'inter' ? 'Inter' : 'System UI'),
-          editorFont: parsed.editorFont || (parsed.monoFont === 'jetbrains' ? 'JetBrains Mono' : parsed.monoFont === 'fira' ? 'Fira Code' : parsed.monoFont === 'consolas' ? 'Consolas' : 'DM Mono'),
-        };
-      }
+      if (raw) return { ...defaultSettings, ...JSON.parse(raw) };
     } catch {}
     return defaultSettings;
   }
@@ -236,40 +228,6 @@
     }
   }
 
-  async function handleAddTagToNote(item: RecentItem, tag: string) {
-    const targetNote = notes.find((n) => (item.id ? n.id === item.id : (item.path && n.path === item.path)));
-    if (targetNote) {
-      const updated = addTagToContent(targetNote.content, tag);
-      if (updated !== targetNote.content) {
-        targetNote.content = updated;
-        targetNote.tags = extractTags(updated);
-        targetNote.isDirty = true;
-        targetNote.preview = cleanPreview(updated);
-        notes = [...notes];
-        if (targetNote.id === activeNoteId && editorInstance) {
-          isProgrammaticUpdate = true;
-          editorInstance.setContent(updated);
-          isProgrammaticUpdate = false;
-        }
-        recordRecentItem(targetNote.title, targetNote.path, targetNote.content, targetNote.tags);
-      }
-      return;
-    }
-
-    if (item.path) {
-      try {
-        const file = await ReadFile(item.path);
-        const updated = addTagToContent(file.content, tag);
-        if (updated !== file.content) {
-          await SaveFile(item.path, updated);
-          const newTags = extractTags(updated);
-          recordRecentItem(item.title, item.path, updated, newTags);
-        }
-      } catch (err) {
-        console.error('Failed to add tag to file on disk:', err);
-      }
-    }
-  }
 
   function handleSelectTagFilter(tag: string | null) {
     activeTagFilter = tag;
@@ -311,12 +269,17 @@
   // Saving mutex to prevent duplicate Save dialogs popping up
   let isSaving = $state<boolean>(false);
   let isProgrammaticUpdate = false;
-  let showQuitModal = $state<boolean>(false);
   let handleBeforeUnload: ((e: BeforeUnloadEvent) => string | void) | null = null;
 
   // Confirmation modal state
-  let showCloseModal = $state<boolean>(false);
-  let pendingCloseNoteId = $state<string | null>(null);
+  interface ConfirmModalState {
+    title: string;
+    desc: string;
+    saveLabel?: string;
+    onSave: () => void | Promise<void>;
+    onDiscard: () => void;
+  }
+  let confirmModal = $state<ConfirmModalState | null>(null);
 
   // Editor DOM reference & CM6 instance
   let editorContainerEl = $state<HTMLDivElement | null>(null);
@@ -417,15 +380,6 @@
     }
   }
 
-  function handleCloseRecent(item: RecentItem, e?: MouseEvent) {
-    if (e) e.stopPropagation();
-    if (item.id) {
-      requestCloseNote(item.id, e);
-    }
-    if (item.path) {
-      saveRecentHistory(recentHistory.filter((r) => r.path !== item.path));
-    }
-  }
 
   function requestCloseNote(id: string, e?: MouseEvent) {
     if (e) e.stopPropagation();
@@ -433,8 +387,16 @@
     if (!note) return;
 
     if (note.isDirty) {
-      pendingCloseNoteId = id;
-      showCloseModal = true;
+      confirmModal = {
+        title: 'Save Changes?',
+        desc: `Do you want to save the changes you made to "${note.title}"? Your changes will be lost if you don't save them.`,
+        onDiscard: () => closeNote(id),
+        onSave: async () => {
+          switchNote(id);
+          const saved = await handleSave();
+          if (saved) closeNote(id);
+        },
+      };
     } else {
       closeNote(id);
     }
@@ -442,11 +404,7 @@
 
   function closeNote(id: string) {
     const idx = notes.findIndex((n) => n.id === id);
-    if (idx === -1) {
-      showCloseModal = false;
-      pendingCloseNoteId = null;
-      return;
-    }
+    if (idx === -1) return;
 
     const remaining = notes.filter((n) => n.id !== id);
     if (remaining.length === 0) {
@@ -467,14 +425,18 @@
         switchNote(notes[nextIdx].id);
       }
     }
-    showCloseModal = false;
-    pendingCloseNoteId = null;
   }
 
   function handleWindowClose() {
     const dirtyNotes = notes.filter((n) => n.isDirty);
     if (dirtyNotes.length > 0) {
-      showQuitModal = true;
+      confirmModal = {
+        title: 'Unsaved Changes',
+        desc: 'You have unsaved changes. Do you want to save them before exiting Tex?',
+        saveLabel: 'Save & Exit',
+        onDiscard: Quit,
+        onSave: handleQuitSave,
+      };
     } else {
       Quit();
     }
@@ -487,7 +449,7 @@
         const saved = await handleSave();
         if (!saved) {
           // Cancelled in save dialog
-          showQuitModal = false;
+          confirmModal = null;
           return;
         }
       }
@@ -768,29 +730,6 @@
     }
   }
 
-  function handleReorderNotes(reordered: RecentItem[]) {
-    const updatedHistory: RecentItem[] = [];
-    for (const item of reordered) {
-      if (item.path) {
-        updatedHistory.push({
-          title: item.title,
-          path: item.path,
-          lastOpened: item.lastOpened,
-          preview: item.preview,
-        });
-      }
-    }
-    const reorderedNotes: NoteDocument[] = [];
-    for (const item of reordered) {
-      const found = notes.find((n) => (item.id ? n.id === item.id : (item.path && n.path === item.path)));
-      if (found) reorderedNotes.push(found);
-    }
-    for (const n of notes) {
-      if (!reorderedNotes.includes(n)) reorderedNotes.push(n);
-    }
-    notes = reorderedNotes;
-    saveRecentHistory(updatedHistory);
-  }
 
   async function handleDropExternalFiles(paths: string[]) {
     if (paths && paths.length > 0) {
@@ -1201,13 +1140,10 @@
   <Sidebar
     isOpen={true}
     activeId={activeNoteId}
-    {recentItems}
     folders={sidebarFolders}
     bind:activeTagFilter
     onSelectTagFilter={handleSelectTagFilter}
-    onAddTagToNote={handleAddTagToNote}
     onSelectNote={handleSelectRecent}
-    onCloseNote={handleCloseRecent}
     onNewNote={(folderPath) => {
       if (folderPath) {
         handleCreateFileInFolder(folderPath, 'Untitled.md');
@@ -1228,7 +1164,6 @@
     onOpenSettings={() => { showSettingsModal = true; }}
     onRenameFile={handleRenameFile}
     onDeleteFile={handleDeleteFile}
-    onReorderNotes={handleReorderNotes}
     onDropExternalFiles={handleDropExternalFiles}
   />
 {/snippet}
@@ -1340,16 +1275,15 @@
     onClose={() => { showSettingsModal = false; }}
   />
 
-  <!-- Close Confirmation Modal -->
-  {#if showCloseModal && pendingCloseNoteId}
-    {@const noteToClose = notes.find((n) => n.id === pendingCloseNoteId)}
+  <!-- Confirmation Modal -->
+  {#if confirmModal}
     <div
       class="modal-overlay"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      onclick={() => { showCloseModal = false; }}
-      onkeydown={(e) => { if (e.key === 'Escape') showCloseModal = false; }}
+      onclick={() => { confirmModal = null; }}
+      onkeydown={(e) => { if (e.key === 'Escape') confirmModal = null; }}
     >
       <div
         class="modal-card"
@@ -1357,70 +1291,31 @@
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
       >
-        <div class="modal-title">Save Changes?</div>
-        <div class="modal-desc">
-          Do you want to save the changes you made to
-          <strong>"{noteToClose?.title}"</strong>?
-          Your changes will be lost if you don't save them.
-        </div>
+        <div class="modal-title">{confirmModal.title}</div>
+        <div class="modal-desc">{confirmModal.desc}</div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" onclick={() => { showCloseModal = false; }}>
+          <button class="btn btn-secondary" onclick={() => { confirmModal = null; }}>
             Cancel
           </button>
           <button
             class="btn btn-danger"
-            onclick={() => { if (pendingCloseNoteId) closeNote(pendingCloseNoteId); }}
+            onclick={() => {
+              const action = confirmModal?.onDiscard;
+              confirmModal = null;
+              action?.();
+            }}
           >
             Don't Save
           </button>
           <button
             class="btn btn-primary"
             onclick={async () => {
-              if (pendingCloseNoteId) {
-                switchNote(pendingCloseNoteId);
-                const saved = await handleSave();
-                if (saved) {
-                  closeNote(pendingCloseNoteId);
-                }
-              }
+              const action = confirmModal?.onSave;
+              confirmModal = null;
+              await action?.();
             }}
           >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Quit Confirmation Modal -->
-  {#if showQuitModal}
-    <div
-      class="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-      onclick={() => { showQuitModal = false; }}
-      onkeydown={(e) => { if (e.key === 'Escape') showQuitModal = false; }}
-    >
-      <div
-        class="modal-card"
-        role="document"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="modal-title">Unsaved Changes</div>
-        <div class="modal-desc">
-          You have unsaved changes. Do you want to save them before exiting Tex?
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" onclick={() => { showQuitModal = false; }}>
-            Cancel
-          </button>
-          <button class="btn btn-danger" onclick={Quit}>
-            Don't Save
-          </button>
-          <button class="btn btn-primary" onclick={handleQuitSave}>
-            Save & Exit
+            {confirmModal.saveLabel || 'Save'}
           </button>
         </div>
       </div>

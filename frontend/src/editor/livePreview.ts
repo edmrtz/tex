@@ -169,6 +169,158 @@ export interface ParsedTable {
   rows: string[][];
 }
 
+function openLink(url: string): void {
+  if (!url) return;
+  const trimmed = url.trim();
+
+  // External web URL, mailto, ftp, etc.
+  if (/^(https?:\/\/|mailto:|ftp:\/\/)/i.test(trimmed) || /^www\./i.test(trimmed)) {
+    const targetUrl = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
+    if (typeof window !== 'undefined' && (window as any).runtime?.BrowserOpenURL) {
+      (window as any).runtime.BrowserOpenURL(targetUrl);
+    } else if (typeof window !== 'undefined') {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
+    return;
+  }
+
+  // Internal document or note link
+  window.dispatchEvent(new CustomEvent('tex:open-wikilink', { detail: trimmed }));
+}
+
+function parseUrlAndTitle(raw: string): { url: string; title?: string } {
+  let trimmed = raw.trim();
+  let title: string | undefined;
+
+  const titleMatch = trimmed.match(/\s+["']([^"']*)["']\s*$/);
+  if (titleMatch && titleMatch.index !== undefined) {
+    title = titleMatch[1];
+    trimmed = trimmed.slice(0, titleMatch.index).trim();
+  }
+
+  if (trimmed.startsWith('<') && trimmed.endsWith('>')) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+
+  return { url: trimmed, title };
+}
+
+function createLinkElement(text: string, rawUrl: string, explicitTitle?: string): HTMLElement {
+  const { url, title } = parseUrlAndTitle(rawUrl);
+  const finalTitle = explicitTitle || title;
+  const a = document.createElement('a');
+  a.className = 'cm-table-link';
+  a.href = url;
+  a.textContent = text;
+  if (finalTitle) {
+    a.title = finalTitle;
+  } else {
+    a.title = url;
+  }
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+
+  const handleClick = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openLink(url);
+  };
+
+  a.addEventListener('click', handleClick);
+  a.addEventListener('auxclick', (e) => {
+    if (e.button === 1) handleClick(e);
+  });
+
+  return a;
+}
+
+function createWikiLinkElement(raw: string): HTMLElement {
+  let target = raw;
+  let display = raw;
+  if (raw.includes('|')) {
+    const parts = raw.split('|');
+    target = parts[0].trim();
+    display = parts[1].trim() || target;
+  }
+
+  const span = document.createElement('span');
+  span.className = 'cm-wikilink';
+  span.textContent = `[[${display}]]`;
+  span.title = `Open note: ${target}`;
+  span.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('tex:open-wikilink', { detail: target }));
+  });
+  return span;
+}
+
+class MarkdownLinkWidget extends WidgetType {
+  constructor(readonly url: string, readonly displayText: string, readonly title?: string) {
+    super();
+  }
+
+  eq(other: MarkdownLinkWidget): boolean {
+    return other.url === this.url && other.displayText === this.displayText && other.title === this.title;
+  }
+
+  toDOM(): HTMLElement {
+    return createLinkElement(this.displayText, this.url, this.title);
+  }
+
+  ignoreEvent(event: Event): boolean {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a') || target?.closest('.cm-table-link') || target?.closest('.cm-link-preview')) {
+      return true;
+    }
+    return false;
+  }
+}
+
+export function renderTableCellContent(container: HTMLElement, cellText: string): void {
+  const tokenRegex = /(\[([^\]\n]+)\]\(((?:<[^>]+>|[^\s()]|\([^\s()]*\))+)(?:\s+["']([^"']*)["'])?\))|(\[\[([^[\]\n]+?)\]\])|(`([^`\n]+)`)|(\*\*([^*\n]+?)\*\*)|(\*([^*\n]+?)\*)|(~~([^~\n]+?)~~)/g;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenRegex.exec(cellText)) !== null) {
+    if (match.index > lastIndex) {
+      container.appendChild(document.createTextNode(cellText.slice(lastIndex, match.index)));
+    }
+    lastIndex = match.index + match[0].length;
+
+    if (match[1]) {
+      container.appendChild(createLinkElement(match[2], match[3], match[4]));
+    } else if (match[5]) {
+      container.appendChild(createWikiLinkElement(match[6]));
+    } else if (match[7]) {
+      const code = document.createElement('code');
+      code.className = 'cm-inline-code';
+      code.textContent = match[8];
+      container.appendChild(code);
+    } else if (match[9]) {
+      const strong = document.createElement('strong');
+      strong.className = 'cm-bold';
+      strong.textContent = match[10];
+      container.appendChild(strong);
+    } else if (match[11]) {
+      const em = document.createElement('em');
+      em.className = 'cm-italic';
+      em.textContent = match[12];
+      container.appendChild(em);
+    } else if (match[13]) {
+      const s = document.createElement('s');
+      s.className = 'cm-strikethrough';
+      s.textContent = match[14];
+      container.appendChild(s);
+    }
+  }
+
+  if (lastIndex < cellText.length) {
+    container.appendChild(document.createTextNode(cellText.slice(lastIndex)));
+  }
+}
+
 export function parseMarkdownTable(text: string): ParsedTable | null {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) return null;
@@ -177,9 +329,43 @@ export function parseMarkdownTable(text: string): ParsedTable | null {
     let cleaned = line.trim();
     if (cleaned.startsWith('|')) cleaned = cleaned.slice(1);
     if (cleaned.endsWith('|')) cleaned = cleaned.slice(0, -1);
-    return cleaned
-      .split(/(?<!\\)\|/)
-      .map((c) => c.trim().replace(/\\\|/g, '|'));
+
+    const cells: string[] = [];
+    let current = '';
+    let bracketDepth = 0;
+    let parenDepth = 0;
+    let inBacktick = false;
+
+    for (let i = 0; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (ch === '\\' && i + 1 < cleaned.length) {
+        current += ch + cleaned[++i];
+        continue;
+      }
+      if (ch === '`') {
+        inBacktick = !inBacktick;
+        current += ch;
+      } else if (!inBacktick && ch === '[') {
+        bracketDepth++;
+        current += ch;
+      } else if (!inBacktick && ch === ']') {
+        if (bracketDepth > 0) bracketDepth--;
+        current += ch;
+      } else if (!inBacktick && ch === '(' && bracketDepth === 0) {
+        parenDepth++;
+        current += ch;
+      } else if (!inBacktick && ch === ')' && bracketDepth === 0) {
+        if (parenDepth > 0) parenDepth--;
+        current += ch;
+      } else if (ch === '|' && !inBacktick && bracketDepth === 0 && parenDepth === 0) {
+        cells.push(current.trim().replace(/\\\|/g, '|'));
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    cells.push(current.trim().replace(/\\\|/g, '|'));
+    return cells;
   }
 
   const headers = splitRow(lines[0]);
@@ -227,7 +413,7 @@ export class TableWidget extends WidgetType {
     const headerTr = document.createElement('tr');
     headers.forEach((headerText, i) => {
       const th = document.createElement('th');
-      th.textContent = headerText;
+      renderTableCellContent(th, headerText);
       const align = alignments[i];
       if (align) {
         th.style.textAlign = align;
@@ -242,7 +428,7 @@ export class TableWidget extends WidgetType {
       const tr = document.createElement('tr');
       row.forEach((cellText, i) => {
         const td = document.createElement('td');
-        td.textContent = cellText;
+        renderTableCellContent(td, cellText);
         const align = alignments[i];
         if (align) {
           td.style.textAlign = align;
@@ -264,7 +450,11 @@ export class TableWidget extends WidgetType {
     return table;
   }
 
-  ignoreEvent(): boolean {
+  ignoreEvent(event: Event): boolean {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a') || target?.closest('.cm-table-link') || target?.closest('.cm-wikilink')) {
+      return true;
+    }
     return false;
   }
 }
@@ -327,14 +517,30 @@ function computeDecorations(state: EditorState): DecorationSet {
     const hasCursor = cursorInside(state, matchFrom, matchTo);
     if (!hasCursor) {
       const mathContent = match[1];
-      addReplacement(
-        matchFrom,
-        matchTo,
-        Decoration.replace({
-          widget: new BlockMathWidget(mathContent),
-          block: true,
-        })
-      );
+      const startLine = state.doc.lineAt(matchFrom);
+      const endLine = state.doc.lineAt(matchTo);
+      const prefix = state.doc.sliceString(startLine.from, matchFrom);
+      const suffix = state.doc.sliceString(matchTo, endLine.to);
+      const isStandAlone = prefix.trim() === '' && suffix.trim() === '';
+
+      if (isStandAlone) {
+        addReplacement(
+          startLine.from,
+          endLine.to,
+          Decoration.replace({
+            widget: new BlockMathWidget(mathContent),
+            block: true,
+          })
+        );
+      } else {
+        addReplacement(
+          matchFrom,
+          matchTo,
+          Decoration.replace({
+            widget: new InlineMathWidget(mathContent),
+          })
+        );
+      }
     }
   }
 
@@ -388,9 +594,11 @@ function computeDecorations(state: EditorState): DecorationSet {
         // Mermaid diagrams render as SVG widget when cursor is outside
         if (info === 'mermaid') {
           if (!hasCursor) {
+            const startLine = state.doc.lineAt(nodeFrom);
+            const endLine = state.doc.lineAt(nodeTo);
             addReplacement(
-              nodeFrom,
-              nodeTo,
+              startLine.from,
+              endLine.to,
               Decoration.replace({
                 widget: new MermaidWidget(code),
                 block: true,
@@ -719,6 +927,32 @@ function computeDecorations(state: EditorState): DecorationSet {
     }
   }
 
+  // 5b. Markdown links: [text](url) or [text](url "title")
+  const markdownLinkRegex = /(?<!!)(\[([^\]\n]+)\]\(((?:<[^>]+>|[^\s()]|\([^\s()]*\))+)(?:\s+["']([^"']*)["'])?\))/g;
+  while ((match = markdownLinkRegex.exec(docText)) !== null) {
+    const matchFrom = match.index;
+    const matchTo = match.index + match[0].length;
+    if (isInsideCode(matchFrom, matchTo)) continue;
+    if (isOccupied(matchFrom, matchTo)) continue;
+
+    const text = match[2];
+    const url = match[3];
+    const title = match[4];
+
+    const hasCursor = cursorInside(state, matchFrom, matchTo);
+    if (!hasCursor) {
+      addReplacement(
+        matchFrom,
+        matchTo,
+        Decoration.replace({
+          widget: new MarkdownLinkWidget(url, text, title),
+        })
+      );
+    } else {
+      ranges.push(Decoration.mark({ class: 'cm-link-edit' }).range(matchFrom, matchTo));
+    }
+  }
+
   // 6. Colored text spans: <span style="color: ...">text</span> and <font color="...">text</font>
   const spanColorRegex = /<span\b[^>]*?\bstyle\s*=\s*["']([^"']*?color\s*:\s*([^;"']+)[^"']*?)["'][^>]*>([\s\S]+?)<\/span>/gi;
   while ((match = spanColorRegex.exec(docText)) !== null) {
@@ -885,6 +1119,39 @@ export const livePreviewTheme = EditorView.baseTheme({
     border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     padding: '6px 12px',
     backgroundColor: 'var(--bg-code, #18181d)',
+  },
+  '.cm-table a, .cm-table .cm-table-link': {
+    color: 'var(--accent, #38bdf8)',
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+    cursor: 'pointer',
+    transition: 'opacity 0.15s ease',
+  },
+  '.cm-table a:hover, .cm-table .cm-table-link:hover': {
+    opacity: '0.8',
+  },
+  '.cm-table .cm-wikilink': {
+    color: 'var(--accent, #38bdf8)',
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+    cursor: 'pointer',
+    transition: 'opacity 0.15s ease',
+  },
+  '.cm-table .cm-wikilink:hover': {
+    opacity: '0.8',
+  },
+  '.cm-link-preview': {
+    color: 'var(--accent, #38bdf8)',
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+    cursor: 'pointer',
+    transition: 'opacity 0.15s ease',
+  },
+  '.cm-link-preview:hover': {
+    opacity: '0.8',
+  },
+  '.cm-link-edit': {
+    color: 'var(--accent, #38bdf8)',
   },
 });
 

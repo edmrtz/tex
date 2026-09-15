@@ -2,7 +2,7 @@
 
 WAILS := $(shell which wails 2>/dev/null || echo $(HOME)/go/bin/wails)
 PREFIX ?= $(HOME)/.local
-VERSION ?= 0.1.0
+VERSION ?= 0.5.1
 
 dev:
 	$(WAILS) dev -tags webkit2_41

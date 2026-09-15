@@ -365,10 +365,6 @@ export function createMarkdownEditor(
       if (!view.hasFocus) {
         view.contentDOM?.focus();
       }
-      view.dispatch({
-        selection: view.state.selection,
-        scrollIntoView: true,
-      });
     },
     insertTextAtCursor(text: string) {
       const { main } = view.state.selection;

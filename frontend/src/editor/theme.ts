@@ -67,7 +67,7 @@ export function createEditorWidthTheme(mode: 'full' | 'wide' | 'centered' = 'ful
 }
 
 
-export const editorThemeDark = EditorView.theme({
+export const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
     color: 'var(--text-main, #e4e4e7)',
@@ -122,13 +122,15 @@ export const editorThemeDark = EditorView.theme({
     },
   },
   '.cm-selectionBackground, ::selection': {
-    backgroundColor: 'rgba(56, 189, 248, 0.25) !important',
+    backgroundColor: 'var(--accent-subtle, rgba(56, 189, 248, 0.25)) !important',
   },
   '.cm-activeLine': {
     backgroundColor: 'transparent !important',
   },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollbarGutter: 'stable',
     fontFamily: 'inherit',
     scrollbarWidth: 'thin',
     scrollbarColor: 'var(--border, rgba(255, 255, 255, 0.12)) transparent',
@@ -179,11 +181,10 @@ export const editorThemeDark = EditorView.theme({
     padding: '0 2px',
     fontWeight: '600',
   },
-  // Headings
   // Headings with distinctive hierarchical colors
   '.cm-heading': {
     fontWeight: '700',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-1': {
     fontSize: '1.8em',
@@ -191,7 +192,7 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.25em',
     borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     marginBottom: '0.5em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-2': {
     fontSize: '1.5em',
@@ -199,39 +200,39 @@ export const editorThemeDark = EditorView.theme({
     paddingBottom: '0.2em',
     borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
     marginTop: '0.75em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-3': {
     fontSize: '1.25em',
     lineHeight: '1.4',
     marginTop: '0.5em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-4': {
     fontSize: '1.1em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-5': {
     fontSize: '1em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
   },
   '.cm-heading-6': {
     fontSize: '0.9em',
-    color: '#ffffff !important',
+    color: 'var(--text-bright, #ffffff) !important',
     textTransform: 'uppercase',
   },
   // Inline typography
   '.cm-bold': {
     fontWeight: '700',
-    color: '#f4f4f5',
+    color: 'var(--text-bright, #f4f4f5)',
   },
   '.cm-italic': {
     fontStyle: 'italic',
-    color: '#e4e4e7',
+    color: 'var(--text-main, #e4e4e7)',
   },
   '.cm-strikethrough': {
     textDecoration: 'line-through',
-    color: '#71717a',
+    color: 'var(--text-muted, #71717a)',
   },
   '.cm-inline-code': {
     backgroundColor: 'var(--bg-card, #19191d)',
@@ -327,39 +328,56 @@ export const editorThemeDark = EditorView.theme({
     transform: 'scale(0.95)',
   },
   // Math containers
-  '.cm-math-container': {
+  '.cm-katex-block, .cm-math-container': {
     display: 'flex',
     justifyContent: 'center',
-    padding: '16px 0',
-    margin: '8px 0',
+    alignItems: 'center',
+    padding: '12px 16px',
+    margin: '0 !important',
     backgroundColor: 'var(--bg-card, #19191d)',
     borderRadius: '0px',
     border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     cursor: 'pointer',
     overflowX: 'auto',
+    overflowY: 'hidden',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    scrollbarWidth: 'thin',
     transition: 'border-color 0.1s ease',
   },
-  '.cm-math-container:hover': {
+  '.cm-katex-block:hover, .cm-math-container:hover': {
     borderColor: 'var(--accent, #38bdf8)',
   },
-  '.cm-math-inline': {
+  '.cm-katex-block .katex-display': {
+    margin: '0 !important',
+    padding: '0 !important',
+    maxWidth: '100%',
+  },
+  '.cm-katex-inline, .cm-math-inline': {
     cursor: 'pointer',
     padding: '1px 4px',
     borderRadius: '0px',
     backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
+  '.cm-katex-error': {
+    color: 'var(--danger, #f87171)',
+    fontFamily: 'var(--font-mono, monospace)',
+    fontSize: '0.9em',
   },
   // Mermaid containers
   '.cm-mermaid-container': {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '20px 16px',
-    margin: '12px 0',
+    padding: '0',
+    margin: '0 !important',
     backgroundColor: 'var(--bg-card, #19191d)',
     borderRadius: '0px',
     border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
     cursor: 'pointer',
-    overflowX: 'auto',
+    overflowX: 'hidden',
+    maxWidth: '100% !important',
+    boxSizing: 'border-box !important',
     minHeight: '60px',
   },
   '.cm-mermaid-container:hover': {
@@ -480,419 +498,8 @@ export const editorThemeDark = EditorView.theme({
   },
 });
 
-export const editorThemeLight = EditorView.theme({
-  '&': {
-    height: '100%',
-    color: 'var(--text-main, #18181b)',
-    backgroundColor: 'var(--bg-app, #f4f4f6)',
-  },
-  '.cm-content': {
-    caretColor: 'var(--accent, #0284c7)',
-    padding: '20px 48px 64px 36px',
-    lineHeight: '1.7',
-    maxWidth: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  '&.cm-focused': {
-    outline: 'none',
-  },
-  '@keyframes cm-blink': {
-    '0%, 40%': { opacity: '1' },
-    '55%': { opacity: '0' },
-    '85%': { opacity: '0' },
-    '100%': { opacity: '1' },
-  },
-  '@keyframes cm-blink2': {
-    '0%, 40%': { opacity: '1' },
-    '55%': { opacity: '0' },
-    '85%': { opacity: '0' },
-    '100%': { opacity: '1' },
-  },
-  '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
-    animation: 'cm-blink 1.05s ease-in-out infinite',
-  },
-  '.cm-cursorLayer': {
-    pointerEvents: 'none',
-  },
-  '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: 'var(--accent, #0284c7)',
-    borderLeftWidth: '2px',
-    marginLeft: '-1px',
-    borderRadius: '1px',
-  },
-  '.cm-cursor-primary': {
-    borderLeftColor: 'var(--accent, #0284c7)',
-  },
-  '.cm-cursor-secondary': {
-    borderLeftColor: 'var(--accent, #0284c7)',
-    opacity: '0.6',
-  },
-  '@media (prefers-reduced-motion: reduce)': {
-    '&.cm-focused > .cm-scroller > .cm-cursorLayer': {
-      animation: 'none !important',
-      opacity: '1 !important',
-    },
-  },
-  '.cm-selectionBackground, ::selection': {
-    backgroundColor: 'rgba(2, 132, 199, 0.2) !important',
-  },
-  '.cm-activeLine': {
-    backgroundColor: 'transparent !important',
-  },
-  '.cm-scroller': {
-    overflow: 'auto',
-    fontFamily: 'inherit',
-    scrollbarWidth: 'thin',
-    scrollbarColor: 'var(--border, rgba(0, 0, 0, 0.14)) transparent',
-  },
-  '.cm-scroller::-webkit-scrollbar': {
-    width: '6px',
-    height: '6px',
-  },
-  '.cm-scroller::-webkit-scrollbar-track': {
-    background: 'transparent',
-  },
-  '.cm-scroller::-webkit-scrollbar-thumb': {
-    backgroundColor: 'var(--border, rgba(0, 0, 0, 0.14))',
-    borderRadius: '0px',
-  },
-  '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-    backgroundColor: 'var(--accent, #0284c7)',
-  },
-  // Line Numbers Gutters
-  '.cm-gutters': {
-    backgroundColor: 'var(--bg-app, #f4f4f6)',
-    color: 'var(--text-muted, #64748b)',
-    border: 'none',
-    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    paddingRight: '8px',
-    paddingLeft: '4px',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.85em',
-  },
-  '.cm-activeLineGutter': {
-    backgroundColor: 'transparent',
-    color: 'var(--accent, #0284c7)',
-    fontWeight: 'bold',
-  },
-  // Search Match Highlighting
-  '.cm-searchMatch': {
-    backgroundColor: '#facc15 !important',
-    color: '#000000 !important',
-    borderRadius: '1px',
-    padding: '0 2px',
-    fontWeight: '600',
-  },
-  '.cm-searchMatch-selected': {
-    backgroundColor: '#0284c7 !important',
-    color: '#ffffff !important',
-    outline: '1px solid #0369a1',
-    borderRadius: '1px',
-    padding: '0 2px',
-    fontWeight: '600',
-  },
-  // Headings
-  // Headings with distinctive hierarchical colors (Light theme)
-  '.cm-heading': {
-    fontWeight: '700',
-    color: '#09090b !important',
-  },
-  '.cm-heading-1': {
-    fontSize: '1.8em',
-    lineHeight: '1.3',
-    paddingBottom: '0.25em',
-    borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    marginBottom: '0.5em',
-    color: '#09090b !important',
-  },
-  '.cm-heading-2': {
-    fontSize: '1.5em',
-    lineHeight: '1.35',
-    paddingBottom: '0.2em',
-    borderBottom: '1px solid var(--border-subtle, rgba(0, 0, 0, 0.07))',
-    marginTop: '0.75em',
-    color: '#09090b !important',
-  },
-  '.cm-heading-3': {
-    fontSize: '1.25em',
-    lineHeight: '1.4',
-    marginTop: '0.5em',
-    color: '#09090b !important',
-  },
-  '.cm-heading-4': {
-    fontSize: '1.1em',
-    color: '#09090b !important',
-  },
-  '.cm-heading-5': {
-    fontSize: '1em',
-    color: '#09090b !important',
-  },
-  '.cm-heading-6': {
-    fontSize: '0.9em',
-    color: '#09090b !important',
-    textTransform: 'uppercase',
-  },
-  // Inline typography
-  '.cm-bold': {
-    fontWeight: '700',
-    color: '#09090b',
-  },
-  '.cm-italic': {
-    fontStyle: 'italic',
-    color: '#27272a',
-  },
-  '.cm-strikethrough': {
-    textDecoration: 'line-through',
-    color: '#a1a1aa',
-  },
-  '.cm-inline-code': {
-    backgroundColor: 'var(--bg-card, #ffffff)',
-    color: 'var(--accent, #0284c7)',
-    padding: '1px 5px',
-    borderRadius: '0px',
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    fontSize: '0.9em',
-  },
-  // Contiguous TUI Code Blocks
-  '.cm-codeblock-header-line': {
-    backgroundColor: 'var(--bg-code-header, #eaeaf0) !important',
-    borderTop: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    padding: '4px 12px !important',
-    lineHeight: '1.4 !important',
-    margin: '12px 0 0 0 !important',
-  },
-  '.cm-codeblock-lang-badge': {
-    fontSize: '11px',
-    fontWeight: '700',
-    color: 'var(--accent, #0284c7)',
-    fontFamily: 'var(--font-mono)',
-  },
-  '.cm-codeblock-line': {
-    backgroundColor: 'var(--bg-code, #fbfbfd) !important',
-    fontSize: '0.9em',
-    paddingLeft: '14px !important',
-    paddingRight: '14px !important',
-    lineHeight: '1.6 !important',
-    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-  },
-  '.cm-codeblock-footer-line': {
-    backgroundColor: 'var(--bg-code, #fbfbfd) !important',
-    borderBottom: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    borderLeft: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    borderRight: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    height: '6px !important',
-    minHeight: '6px !important',
-    lineHeight: '0 !important',
-    padding: '0 !important',
-    margin: '0 0 12px 0 !important',
-  },
-  '.cm-codeblock-fence': {
-    color: 'var(--text-muted, #64748b)',
-    fontWeight: '500',
-  },
-  '.cm-blockquote-line': {
-    borderLeft: '3px solid var(--accent, #0284c7)',
-    paddingLeft: '14px',
-    color: '#475569',
-    fontStyle: 'italic',
-  },
-  '.cm-hr': {
-    border: 'none',
-    borderTop: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    margin: '16px 0',
-  },
-  // Tables
-  '.cm-table': {
-    width: '100%',
-    borderCollapse: 'collapse',
-    margin: '12px 0',
-    fontSize: '0.95em',
-  },
-  '.cm-table th': {
-    backgroundColor: 'var(--bg-code-header, #eaeaf0)',
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    padding: '6px 12px',
-    fontWeight: '600',
-    color: 'var(--text-main, #18181b)',
-  },
-  '.cm-table td': {
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    padding: '6px 12px',
-    backgroundColor: 'var(--bg-code, #fbfbfd)',
-    color: 'var(--text-main, #18181b)',
-  },
-  '.cm-table tbody tr:nth-child(even) td': {
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-  },
-  '.cm-task-checkbox': {
-    marginRight: '8px',
-    cursor: 'pointer',
-    accentColor: 'var(--accent, #0284c7)',
-    transform: 'scale(1.15)',
-    verticalAlign: 'middle',
-    transition: 'transform 0.12s ease',
-  },
-  '.cm-task-checkbox:active': {
-    transform: 'scale(0.95)',
-  },
-  // Math containers
-  '.cm-math-container': {
-    display: 'flex',
-    justifyContent: 'center',
-    padding: '16px 0',
-    margin: '8px 0',
-    backgroundColor: 'var(--bg-card, #ffffff)',
-    borderRadius: '0px',
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    cursor: 'pointer',
-    overflowX: 'auto',
-  },
-  '.cm-math-container:hover': {
-    borderColor: 'var(--accent, #0284c7)',
-  },
-  '.cm-math-inline': {
-    cursor: 'pointer',
-    padding: '1px 4px',
-    borderRadius: '0px',
-    backgroundColor: 'rgba(2, 132, 199, 0.1)',
-  },
-  // Mermaid containers
-  '.cm-mermaid-container': {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '20px 16px',
-    margin: '12px 0',
-    backgroundColor: 'var(--bg-card, #ffffff)',
-    borderRadius: '0px',
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.14))',
-    cursor: 'pointer',
-    overflowX: 'auto',
-    minHeight: '60px',
-  },
-  '.cm-mermaid-container:hover': {
-    borderColor: 'var(--accent, #0284c7)',
-  },
-  '.cm-mermaid-container svg': {
-    maxWidth: '100%',
-    height: 'auto',
-  },
-  '.cm-mermaid-placeholder': {
-    color: '#64748b',
-    fontStyle: 'italic',
-    fontSize: '13px',
-  },
-  '.cm-mermaid-error': {
-    color: 'var(--danger, #dc2626)',
-    padding: '10px 14px',
-    borderRadius: '0px',
-    backgroundColor: 'rgba(220, 38, 38, 0.08)',
-    border: '1px solid var(--danger, #dc2626)',
-    fontSize: '12px',
-    width: '100%',
-  },
-  '.cm-mermaid-error-title': {
-    fontWeight: '700',
-    marginBottom: '4px',
-  },
-  '.cm-mermaid-error pre': {
-    margin: 0,
-    whiteSpace: 'pre-wrap',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '11.5px',
-    color: '#dc2626',
-  },
-  // Bullet points in live preview
-  '.cm-bullet-point': {
-    color: 'var(--accent, #0284c7)',
-    fontWeight: 'bold',
-    display: 'inline-block',
-    marginRight: '0.5em',
-    textAlign: 'center',
-  },
-  // Text highlights ==highlight==
-  '.cm-text-highlight': {
-    backgroundColor: 'rgba(250, 204, 21, 0.35)',
-    color: '#854d0e',
-    padding: '1px 5px',
-    borderRadius: '2px',
-    border: '1px solid rgba(250, 204, 21, 0.5)',
-  },
-  // GitHub-style callout notes
-  '.cm-callout': {
-    borderLeftWidth: '3px !important',
-    borderLeftStyle: 'solid !important',
-    paddingLeft: '12px !important',
-  },
-  '.cm-callout-note': {
-    borderLeftColor: '#0284c7 !important',
-    backgroundColor: 'rgba(2, 132, 199, 0.07) !important',
-  },
-  '.cm-callout-tip': {
-    borderLeftColor: '#16a34a !important',
-    backgroundColor: 'rgba(22, 163, 74, 0.07) !important',
-  },
-  '.cm-callout-important': {
-    borderLeftColor: '#9333ea !important',
-    backgroundColor: 'rgba(147, 51, 234, 0.07) !important',
-  },
-  '.cm-callout-warning': {
-    borderLeftColor: 'var(--dirty, #d97706) !important',
-    backgroundColor: 'rgba(217, 119, 6, 0.07) !important',
-  },
-  '.cm-callout-caution': {
-    borderLeftColor: 'var(--danger, #e11d48) !important',
-    backgroundColor: 'rgba(225, 29, 72, 0.07) !important',
-  },
-  '.cm-callout-badge': {
-    fontWeight: '700',
-    fontFamily: 'var(--font-mono)',
-    marginRight: '6px',
-    display: 'inline-block',
-  },
-  // Autocomplete popup
-  '.cm-tooltip-autocomplete': {
-    backgroundColor: 'var(--bg-card, #ffffff) !important',
-    border: '1px solid var(--border, rgba(0, 0, 0, 0.16)) !important',
-    borderRadius: '0px !important',
-    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.16) !important',
-    fontFamily: 'var(--font-mono) !important',
-    fontSize: '12px !important',
-  },
-  '.cm-tooltip-autocomplete > ul': {
-    maxHeight: '260px',
-    fontFamily: 'var(--font-mono)',
-  },
-  '.cm-tooltip-autocomplete > ul > li': {
-    padding: '4px 10px !important',
-    borderRadius: '0px !important',
-    color: 'var(--text-main, #18181b)',
-  },
-  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-    backgroundColor: 'var(--bg-active, rgba(0, 0, 0, 0.08)) !important',
-    color: 'var(--accent, #0284c7) !important',
-  },
-  '.cm-completionLabel': {
-    fontWeight: '500',
-  },
-  '.cm-completionDetail': {
-    color: 'var(--text-muted, #64748b) !important',
-    fontStyle: 'italic',
-    marginLeft: '8px',
-    fontSize: '11px',
-  },
-  '.cm-completionMatchedText': {
-    color: 'var(--accent, #0284c7) !important',
-    textDecoration: 'none !important',
-    fontWeight: '700',
-  },
-});
-
-export const editorTheme = editorThemeDark;
+export const editorThemeDark = editorTheme;
+export const editorThemeLight = editorTheme;
 
 export const markdownHighlightStyleDark = HighlightStyle.define([
   // Keywords and control flow

@@ -174,13 +174,14 @@ function ensureCustomStyles() {
   position: relative !important;
   display: flex !important;
   flex-direction: column !important;
-  margin: 12px 0 !important;
+  margin: 0 !important;
   padding: 0 !important;
   background-color: var(--bg-card, #19191d) !important;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
   border-radius: 0px !important;
   overflow: hidden !important;
   box-sizing: border-box !important;
+  max-width: 100% !important;
   min-height: 60px !important;
   align-items: stretch !important;
   justify-content: flex-start !important;
@@ -299,6 +300,15 @@ function ensureCustomStyles() {
   document.head.appendChild(style);
 }
 
+interface MermaidCacheEntry {
+  svg: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  height: number;
+}
+
+const mermaidCache = new Map<string, MermaidCacheEntry>();
+
 export class MermaidWidget extends WidgetType {
   constructor(readonly code: string) {
     super();
@@ -306,6 +316,18 @@ export class MermaidWidget extends WidgetType {
 
   eq(other: MermaidWidget) {
     return other.code === this.code;
+  }
+
+  get estimatedHeight(): number {
+    const cleanCode = normalizeMermaidCode(this.code.trim());
+    const theme = getMermaidTheme();
+    const cacheKey = `${theme}:::${cleanCode}`;
+    const cached = mermaidCache.get(cacheKey);
+    if (cached && cached.height > 0) {
+      return cached.height;
+    }
+    const lines = cleanCode.split('\n').length;
+    return Math.max(160, Math.min(800, lines * 28 + 60));
   }
 
   toDOM(view: EditorView) {
@@ -320,6 +342,11 @@ export class MermaidWidget extends WidgetType {
       container.innerHTML = '<div class="cm-mermaid-placeholder">Empty Mermaid diagram</div>';
       return container;
     }
+
+    const theme = getMermaidTheme();
+    const cacheKey = `${theme}:::${cleanCode}`;
+    const cached = mermaidCache.get(cacheKey);
+    container.style.minHeight = `${cached && cached.height > 0 ? cached.height : this.estimatedHeight}px`;
 
     const diagramType = getDiagramType(cleanCode);
 
@@ -570,6 +597,18 @@ export class MermaidWidget extends WidgetType {
     // Render diagram
     const renderDiagram = () => {
       const activeTheme = getMermaidTheme();
+      const currentKey = `${activeTheme}:::${cleanCode}`;
+      const entry = mermaidCache.get(currentKey);
+      if (entry) {
+        canvas.innerHTML = entry.svg;
+        renderedSvgEl = canvas.querySelector('svg');
+        naturalWidth = entry.naturalWidth;
+        naturalHeight = entry.naturalHeight;
+        applySizing();
+        container.style.minHeight = `${entry.height}px`;
+        return;
+      }
+
       mermaid.initialize({
         startOnLoad: false,
         theme: activeTheme,
@@ -646,6 +685,15 @@ export class MermaidWidget extends WidgetType {
 
             // Apply natural sizing at 100% scale
             applySizing();
+
+            const measuredHeight = container.getBoundingClientRect().height || naturalHeight + 40;
+            mermaidCache.set(currentKey, {
+              svg,
+              naturalWidth,
+              naturalHeight,
+              height: Math.round(measuredHeight),
+            });
+            container.style.minHeight = `${Math.round(measuredHeight)}px`;
           }
 
           view?.requestMeasure?.();

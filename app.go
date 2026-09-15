@@ -459,12 +459,6 @@ func (a *App) ExportHTML(defaultFilename string, htmlContent string) (string, er
 	return selected, nil
 }
 
-// PrintDocument emits print event to frontend
-func (a *App) PrintDocument() {
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "action:print", nil)
-	}
-}
 
 // OpenDirectoryDialog prompts the user to select a workspace folder
 func (a *App) OpenDirectoryDialog() (string, error) {

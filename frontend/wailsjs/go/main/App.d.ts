@@ -26,8 +26,6 @@ export function OpenDirectoryDialog():Promise<string>;
 
 export function OpenFileDialog():Promise<string>;
 
-export function PrintDocument():Promise<void>;
-
 export function ReadDirectoryTree(arg1:string,arg2:number):Promise<Array<main.FileItem>>;
 
 export function ReadFile(arg1:string):Promise<main.FileInfo>;
